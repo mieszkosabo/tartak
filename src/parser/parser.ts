@@ -1,5 +1,5 @@
 import { Tokenizer, type Token } from "./tokenizer";
-import type { Expression, Statement } from "./types";
+import type { Definition, Expression, Param, Statement } from "./types";
 
 export class Parser {
   private code = "";
@@ -19,18 +19,18 @@ export class Parser {
   // Program: DefinitionList;
   //
   // In Tartak, a "program" is simply a list of type definitions.
-  Program() {
+  private Program() {
     return {
       type: "Program",
       body: this.DefinitionList(),
-    };
+    } as const;
   }
 
   // DefinitionList: Definition | DefinitionList Definition;
   //
   // Since we use a recursive descent parser, we can't do left recursion,
   // so the above rule (and everywhere else) will be implemented with a loop.
-  DefinitionList(stopToken: Token["type"] | null = null) {
+  private DefinitionList(stopToken: Token["type"] | null = null) {
     const definitions = [this.Definition()];
 
     while (this.lookahead !== null && this.lookahead.type !== stopToken) {
@@ -41,10 +41,12 @@ export class Parser {
   }
 
   // Definition: "type" Identifier "=" Type ";";
-  Definition() {
+  private Definition() {
     this.eat("type");
 
     const name = this.Identifier().name;
+
+    const params = this.lookahead?.type === "(" ? this.ParameterList() : [];
 
     this.eat("SIMPLE_ASSIGN");
 
@@ -52,8 +54,44 @@ export class Parser {
 
     return {
       type: "Definition",
+      params,
       name,
       body,
+    } as const satisfies Definition;
+  }
+
+  /**
+   * ParameterList
+   *  : Param
+   *  | ParameterList ',' Identifier
+   */
+  ParameterList() {
+    this.eat("(");
+    const params = [this.Param()];
+    while (this.lookahead?.type === ",") {
+      this.eat(",");
+      params.push(this.Param());
+    }
+
+    this.eat(")");
+
+    return params;
+  }
+
+  /**
+   * Param
+   *  : Identifier
+   *  | IdentifierWithType
+   */
+  Param(): Param {
+    const ident = this.Identifier();
+    const paramType =
+      this.lookahead?.type === ":" && this.eat(":") ? this.Expression() : null;
+
+    return {
+      type: "Param",
+      name: ident.name,
+      paramType,
     };
   }
 
@@ -63,7 +101,7 @@ export class Parser {
    *  | StatementList Statement
    *  ;
    */
-  StatementList(stopToken: Token["type"] | null = null) {
+  private StatementList(stopToken: Token["type"] | null = null) {
     const statements = [this.Statement()];
 
     while (this.lookahead !== null && this.lookahead.type !== stopToken) {
@@ -75,17 +113,14 @@ export class Parser {
 
   /**
    * Statement
-   *  : ReturnStatement
    *  | VariableDeclaration
    *  | ExpressionStatement
    *  ;
    */
-  Statement(): Statement {
+  private Statement(): Statement {
     switch (this.lookahead?.type) {
       case "let":
         return this.VariableDeclaration();
-      case "return":
-        return this.ReturnStatement();
       default:
         return this.ExpressionStatement();
     }
@@ -96,7 +131,7 @@ export class Parser {
    *  : Expression
    *  ;
    */
-  ExpressionStatement(): Statement {
+  private ExpressionStatement(): Statement {
     const expr = this.Expression();
 
     return {
@@ -106,28 +141,11 @@ export class Parser {
   }
 
   /**
-   * ReturnStatement
-   * : 'return' OptExpression ';'
-   */
-  ReturnStatement() {
-    this.eat("return");
-
-    const argument = this.lookahead?.type !== ";" ? this.Expression() : null;
-
-    this.eat(";");
-
-    return {
-      type: "ReturnStatement",
-      argument,
-    } as const;
-  }
-
-  /**
    * VariableDeclaration
    *  : 'let' IDENTIFIER '=' Expression ';'
    *  ;
    */
-  VariableDeclaration() {
+  private VariableDeclaration() {
     this.eat("let");
     let id = this.Identifier();
     this.eat("SIMPLE_ASSIGN");
@@ -142,7 +160,7 @@ export class Parser {
   }
 
   // Type: Expression;
-  Type() {
+  private Type() {
     return this.Expression();
   }
 
@@ -151,7 +169,7 @@ export class Parser {
    *  : AssignmentExpression
    *  ;
    */
-  Expression(): Expression {
+  private Expression(): Expression {
     return this.AssignmentExpression();
   }
 
@@ -162,7 +180,7 @@ export class Parser {
    *  ;
    */
 
-  AssignmentExpression(): Expression {
+  private AssignmentExpression(): Expression {
     const left = this.LogicalORExpression(); // always start with the lowest precedence
 
     if (!this._isAssignmentOperator(this.lookahead?.type)) {
@@ -185,7 +203,7 @@ export class Parser {
    *  | RelationalExpression
    *  ;
    */
-  EqualityExpression(): Expression {
+  private EqualityExpression(): Expression {
     return this._BinaryExpression("RelationalExpression", "EQUALITY_OPERATOR");
   }
 
@@ -197,15 +215,15 @@ export class Parser {
    *  | AdditiveExpression RELATIONAL_OPERATOR RelationalExpression
    */
 
-  RelationalExpression(): Expression {
+  private RelationalExpression(): Expression {
     return this._BinaryExpression("AdditiveExpression", "RELATIONAL_OPERATOR");
   }
 
-  _isAssignmentOperator(tokenType: Token["type"] | undefined) {
+  private _isAssignmentOperator(tokenType: Token["type"] | undefined) {
     return tokenType === "SIMPLE_ASSIGN" || tokenType === "COMPLEX_ASSIGN";
   }
 
-  _checkValidAssignmentTarget(node: any) {
+  private _checkValidAssignmentTarget(node: any) {
     if (node.type === "Identifier" || node.type === "MemberExpression") {
       return node;
     }
@@ -220,7 +238,7 @@ export class Parser {
    *  ;
    */
 
-  AssignmentOperator() {
+  private AssignmentOperator() {
     if (this.lookahead?.type === "SIMPLE_ASSIGN") {
       return this.eat("SIMPLE_ASSIGN");
     }
@@ -236,7 +254,7 @@ export class Parser {
    *  | LogicalORExpression
    *  ;
    */
-  LogicalORExpression(): Expression {
+  private LogicalORExpression(): Expression {
     return this._LogicalExpression("LogicalANDExpression", "LOGICAL_OR");
   }
 
@@ -248,11 +266,11 @@ export class Parser {
    *  | EqualityExpression
    *  ;
    */
-  LogicalANDExpression(): Expression {
+  private LogicalANDExpression(): Expression {
     return this._LogicalExpression("EqualityExpression", "LOGICAL_AND");
   }
 
-  _LogicalExpression(
+  private _LogicalExpression(
     builderName: "EqualityExpression" | "LogicalANDExpression",
     operatorToken: Token["type"]
   ): Expression {
@@ -279,7 +297,7 @@ export class Parser {
    *  | AdditiveExpression ADDITIVE_OPERATOR MultiplicativeExpression
    *  ;
    */
-  AdditiveExpression(): Expression {
+  private AdditiveExpression(): Expression {
     return this._BinaryExpression(
       "MultiplicativeExpression",
       "ADDITIVE_OPERATOR"
@@ -292,14 +310,14 @@ export class Parser {
    *  | MultiplicativeExpression MULTIPLICATIVE_OPERATOR UnaryExpression
    *  ;
    */
-  MultiplicativeExpression(): Expression {
+  private MultiplicativeExpression(): Expression {
     return this._BinaryExpression("UnaryExpression", "MULTIPLICATIVE_OPERATOR");
   }
 
   /**
    * Generic binary expression
    */
-  _BinaryExpression(
+  private _BinaryExpression(
     builderName:
       | "MultiplicativeExpression"
       | "PrimaryExpression"
@@ -332,7 +350,7 @@ export class Parser {
    *  | LOGICAL_NOT UnaryExpression
    *  ;
    */
-  UnaryExpression(): Expression {
+  private UnaryExpression(): Expression {
     let operator: Token["value"] | null = null;
     switch (this.lookahead?.type) {
       case "ADDITIVE_OPERATOR":
@@ -357,7 +375,7 @@ export class Parser {
    * LeftHandSideExpression
    * : CallMemberExpression
    */
-  LeftHandSideExpression(): Expression {
+  private LeftHandSideExpression(): Expression {
     return this.CallMemberExpression();
   }
 
@@ -366,7 +384,7 @@ export class Parser {
    * : MemberExpression
    * | CallExpression
    */
-  CallMemberExpression(): Expression {
+  private CallMemberExpression(): Expression {
     const member = this.MemberExpression(); // might be part of a call
 
     if (this.lookahead?.type === "(") {
@@ -384,7 +402,7 @@ export class Parser {
    *  : MemberExpression
    *  | CallExpression
    */
-  _CallExpression(callee: Expression): Expression {
+  private _CallExpression(callee: Expression): Expression {
     let callExpr = {
       type: "CallExpression",
       callee,
@@ -403,7 +421,7 @@ export class Parser {
    *  : '(' OptArgumentList ')'
    *  ;
    */
-  Arguments() {
+  private Arguments() {
     this.eat("(");
     const args = this.lookahead?.type !== ")" ? this.ArgumentList() : [];
     this.eat(")");
@@ -415,7 +433,7 @@ export class Parser {
    *  : AssignmentExpression
    *  | ArgumentList ',' AssignmentExpression
    */
-  ArgumentList() {
+  private ArgumentList() {
     const args = [this.AssignmentExpression()];
 
     while (this.lookahead?.type === ",") {
@@ -433,7 +451,7 @@ export class Parser {
    *  | MemberExpression '[' Expression ']'
    *  ;
    */
-  MemberExpression(): Expression {
+  private MemberExpression(): Expression {
     let object = this.PrimaryExpression();
 
     while (this.lookahead?.type === "." || this.lookahead?.type === "[") {
@@ -469,10 +487,11 @@ export class Parser {
    *  : Literal
    *  | ParenthesizedExpression
    *  | BlockExpression
+   *  | ConditionalExpression
    *  | Identifier
    *  ;
    */
-  PrimaryExpression(): Expression {
+  private PrimaryExpression(): Expression {
     if (this._isLiteral(this.lookahead?.type)) {
       return this.Literal();
     }
@@ -483,12 +502,34 @@ export class Parser {
         return this.BlockExpression();
       case "IDENTIFIER":
         return this.Identifier();
+      case "if":
+        return this.ConditionalExpression();
       default:
         return this.LeftHandSideExpression();
     }
   }
 
-  _isLiteral(tokenType: Token["type"] | undefined) {
+  /**
+   *  ConditionalExpression
+   *  : 'if' Expression 'then' Expression 'else' Expression
+   */
+  private ConditionalExpression(): Expression {
+    this.eat("if");
+    const test = this.Expression();
+    this.eat("then");
+    const consequence = this.Expression();
+    this.eat("else");
+    const alternative = this.Expression();
+
+    return {
+      type: "ConditionalExpression",
+      test,
+      consequence,
+      alternative,
+    };
+  }
+
+  private _isLiteral(tokenType: Token["type"] | undefined) {
     return (
       tokenType === "NUMBER" ||
       tokenType === "STRING" ||
@@ -502,7 +543,7 @@ export class Parser {
    *  : ':{' StatementList '}'
    *  ;
    */
-  BlockExpression(): Expression {
+  private BlockExpression(): Expression {
     this.eat(":");
     this.eat("{");
     const statements = this.StatementList("}");
@@ -519,7 +560,7 @@ export class Parser {
    *  : '(' Expression ')'
    *  ;
    */
-  ParenthesizedExpression(): Expression {
+  private ParenthesizedExpression(): Expression {
     this.eat("(");
     const expr = this.Expression();
     this.eat(")");
@@ -528,7 +569,7 @@ export class Parser {
   }
 
   // Literal: "string" | "number";
-  Literal(): Expression {
+  private Literal(): Expression {
     switch (this.lookahead?.type) {
       case "number":
         return this.NumberKeyword();
@@ -543,7 +584,7 @@ export class Parser {
     throw new SyntaxError(`Unexpected literal production`);
   }
 
-  StringLiteral(): Expression {
+  private StringLiteral(): Expression {
     const token = this.eat("STRING");
 
     return {
@@ -552,7 +593,7 @@ export class Parser {
     };
   }
 
-  NumericLiteral(): Expression {
+  private NumericLiteral(): Expression {
     const token = this.eat("NUMBER");
 
     return {
@@ -561,7 +602,7 @@ export class Parser {
     };
   }
 
-  NumberKeyword(): Expression {
+  private NumberKeyword(): Expression {
     const token = this.eat("number");
 
     return {
@@ -569,7 +610,7 @@ export class Parser {
     };
   }
 
-  StringKeyword(): Expression {
+  private StringKeyword(): Expression {
     const token = this.eat("string");
 
     return {
@@ -578,7 +619,7 @@ export class Parser {
   }
 
   // Identifier: IDENTIFIER;
-  Identifier() {
+  private Identifier() {
     const name = this.eat("IDENTIFIER").value;
     return {
       type: "Identifier",
@@ -588,7 +629,7 @@ export class Parser {
 
   // assert that the current token is of the expected type,
   // "consume it" from the stream and return it.
-  eat(tokenType: Omit<string, Token["type"]> | Token["type"]) {
+  private eat(tokenType: Omit<string, Token["type"]> | Token["type"]) {
     const token = this.lookahead;
 
     if (token === null) {

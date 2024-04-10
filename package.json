@@ -8,5 +8,11 @@
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "hotscript": "^1.0.13",
+    "ts-arithmetic": "^0.1.1",
+    "ts-pattern": "^5.1.1",
+    "type-fest": "^4.15.0"
   }
 }

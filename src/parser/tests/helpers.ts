@@ -11,6 +11,7 @@ export const testExpression = (expression: string, expectedAST: any) => {
       {
         type: "Definition",
         name: "_dummy",
+        params: [],
         body: expectedAST,
       },
     ],

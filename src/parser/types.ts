@@ -1,18 +1,24 @@
 import type { Token } from "./tokenizer";
 
-type DefinitionParam = string;
+export type Param = {
+  type: "Param";
+  name: string;
+  paramType: Expression | null;
+};
 
-type Definition = {
+export type Definition = {
   type: "Definition";
   name: string;
-  params: DefinitionParam[];
-  body: never;
+  params: Param[];
+  body: Expression;
 };
 
 export type TartakAST =
   | { type: "Program"; body: Definition[] }
   | Definition
-  | Expression;
+  | Expression
+  | Param
+  | Statement;
 
 export type Literal =
   | { type: "NumericLiteral"; value: number }
@@ -21,10 +27,6 @@ export type Literal =
   | { type: "StringKeyword" };
 
 export type Statement =
-  | {
-      type: "ReturnStatement";
-      argument: Expression | null;
-    }
   | {
       type: "VariableDeclaration";
       name: string;
@@ -49,6 +51,12 @@ export type Expression =
       computed: boolean;
       object: Expression;
       property: Expression;
+    }
+  | {
+      type: "ConditionalExpression";
+      test: Expression;
+      consequence: Expression;
+      alternative: Expression;
     }
   | {
       type: "CallExpression";

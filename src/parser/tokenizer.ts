@@ -30,8 +30,10 @@ const spec = [
   [/^\blet\b/, "let"],
   [/^\bnumber\b/, "number"],
   [/^\bstring\b/, "string"],
-  [/^\breturn\b/, "return"],
   [/^\btype\b/, "type"],
+  [/^\bif\b/, "if"],
+  [/^\bthen\b/, "then"],
+  [/^\belse\b/, "else"],
 
   // ---
   // Numbers
