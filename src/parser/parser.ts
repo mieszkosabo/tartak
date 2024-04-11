@@ -48,7 +48,7 @@ export class Parser {
 
     const params = this.lookahead?.type === "(" ? this.ParameterList() : [];
 
-    this.eat("SIMPLE_ASSIGN");
+    this.eat("=");
 
     const body = this.Type();
 
@@ -148,7 +148,7 @@ export class Parser {
   private VariableDeclaration() {
     this.eat("let");
     let id = this.Identifier();
-    this.eat("SIMPLE_ASSIGN");
+    this.eat("=");
     let expr = this.Expression();
     this.eat(";");
 
@@ -183,13 +183,13 @@ export class Parser {
   private AssignmentExpression(): Expression {
     const left = this.LogicalORExpression(); // always start with the lowest precedence
 
-    if (!this._isAssignmentOperator(this.lookahead?.type)) {
+    if (this.lookahead?.type !== "=") {
       return left;
     }
 
     return {
       type: "AssignmentExpression",
-      operator: this.AssignmentOperator().value,
+      operator: "=",
       left: this._checkValidAssignmentTarget(left),
       right: this.AssignmentExpression(),
     };
@@ -219,31 +219,12 @@ export class Parser {
     return this._BinaryExpression("AdditiveExpression", "RELATIONAL_OPERATOR");
   }
 
-  private _isAssignmentOperator(tokenType: Token["type"] | undefined) {
-    return tokenType === "SIMPLE_ASSIGN" || tokenType === "COMPLEX_ASSIGN";
-  }
-
   private _checkValidAssignmentTarget(node: any) {
     if (node.type === "Identifier" || node.type === "MemberExpression") {
       return node;
     }
 
     throw new SyntaxError(`Invalid left-hand side in assignment expression`);
-  }
-
-  /**
-   * AssignmentOperator
-   *  : SIMPLE_ASSIGN
-   *  | COMPLEX_ASSIGN
-   *  ;
-   */
-
-  private AssignmentOperator() {
-    if (this.lookahead?.type === "SIMPLE_ASSIGN") {
-      return this.eat("SIMPLE_ASSIGN");
-    }
-
-    return this.eat("COMPLEX_ASSIGN");
   }
 
   /**
@@ -272,12 +253,12 @@ export class Parser {
 
   private _LogicalExpression(
     builderName: "EqualityExpression" | "LogicalANDExpression",
-    operatorToken: Token["type"]
+    operatorToken: "LOGICAL_AND" | "LOGICAL_OR"
   ): Expression {
     let left = this[builderName]();
 
     while (this.lookahead?.type === operatorToken) {
-      const operator = this.eat(operatorToken).value;
+      const operator = this.eat(operatorToken).value as "&&" | "||";
       const right = this[builderName]();
 
       left = {
@@ -351,13 +332,13 @@ export class Parser {
    *  ;
    */
   private UnaryExpression(): Expression {
-    let operator: Token["value"] | null = null;
+    let operator: "!" | "-" | null = null;
     switch (this.lookahead?.type) {
       case "ADDITIVE_OPERATOR":
-        operator = this.eat("ADDITIVE_OPERATOR").value;
+        operator = this.eat("ADDITIVE_OPERATOR").value as "-";
         break;
       case "LOGICAL_NOT":
-        operator = this.eat("LOGICAL_NOT").value;
+        operator = this.eat("LOGICAL_NOT").value as "!";
         break;
     }
     if (operator !== null) {

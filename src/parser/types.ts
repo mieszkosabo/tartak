@@ -66,18 +66,18 @@ export type Expression =
   | {
       type: "LogicalExpression";
       left: Expression;
-      operator: Token["value"];
+      operator: "&&" | "||";
       right: Expression;
     }
   | {
       type: "AssignmentExpression";
-      operator: string;
+      operator: "=";
       left: Expression;
       right: Expression;
     }
   | {
       type: "UnaryExpression";
-      operator: Token["value"];
+      operator: "-" | "!";
       argument: Expression;
     }
   | Literal;

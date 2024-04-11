@@ -48,9 +48,8 @@ const spec = [
   [/^[=!]=/, "EQUALITY_OPERATOR"],
 
   // ---
-  // Assignment operators: =, +=, -=, *=, /=
-  [/^=/, "SIMPLE_ASSIGN"],
-  [/^[\*\/\+\-]=/, "COMPLEX_ASSIGN"],
+  // Assignment operators: =
+  [/^=/, "="],
 
   // ---
   // logical
