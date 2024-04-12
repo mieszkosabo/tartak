@@ -435,7 +435,11 @@ export class Parser {
   private MemberExpression(): Expression {
     let object = this.PrimaryExpression();
 
-    while (this.lookahead?.type === "." || this.lookahead?.type === "[") {
+    while (
+      this.lookahead?.type === "." ||
+      this.lookahead?.type === "[" ||
+      this.lookahead?.type === "("
+    ) {
       if (this.lookahead?.type === ".") {
         this.eat(".");
         const property = this.Identifier();
@@ -457,6 +461,10 @@ export class Parser {
           object,
           property,
         };
+      }
+
+      if (this.lookahead?.type === "(") {
+        object = this._CallExpression(object);
       }
     }
 
@@ -515,7 +523,8 @@ export class Parser {
       tokenType === "NUMBER" ||
       tokenType === "STRING" ||
       tokenType === "number" ||
-      tokenType === "string"
+      tokenType === "string" ||
+      tokenType === "["
     );
   }
 
@@ -560,6 +569,8 @@ export class Parser {
         return this.NumericLiteral();
       case "STRING":
         return this.StringLiteral();
+      case "[":
+        return this.TupleLiteral();
     }
 
     throw new SyntaxError(`Unexpected literal production`);
@@ -597,6 +608,38 @@ export class Parser {
     return {
       type: "StringKeyword",
     };
+  }
+
+  /**
+   * TupleLiteral
+   *  : '[' OptTupleElements ']'
+   */
+  private TupleLiteral(): Expression {
+    this.eat("[");
+    const elements = this.lookahead?.type === "]" ? [] : this.TupleElements();
+
+    this.eat("]");
+
+    return {
+      type: "Tuple",
+      elements,
+    };
+  }
+
+  /**
+   * TupleElements
+   *  : Expression
+   *  | TupleElements Expression
+   */
+  private TupleElements(): Expression[] {
+    const elements = [this.Expression()];
+
+    while (this.lookahead?.type === ",") {
+      this.eat(",");
+      elements.push(this.Expression());
+    }
+
+    return elements;
   }
 
   // Identifier: IDENTIFIER;

@@ -1,6 +1,6 @@
 import { match } from "ts-pattern";
 import { Parser } from "../parser/parser";
-import type { Statement, TartakAST } from "../parser/types";
+import type { Expression, Statement, TartakAST } from "../parser/types";
 import fs from "node:fs";
 
 class Compiler {
@@ -9,10 +9,12 @@ class Compiler {
   private imports: {
     math: Set<string>;
     utils: Set<string>;
+    hot: Set<string>;
     // local: Set<string>;
   } = {
     math: new Set(),
     utils: new Set(),
+    hot: new Set(),
   };
   private nextId = 1;
 
@@ -43,8 +45,14 @@ class Compiler {
                   ", type "
                 )} } from "type-fest"`
               : "";
+          const hotImports =
+            this.imports.hot.size > 0
+              ? `import { type ${Array.from(this.imports.hot.values()).join(
+                  ", type "
+                )} } from "hotscript"`
+              : "";
 
-          return `${mathImports}\n${utilsImports}\n\n${defs}`;
+          return `${hotImports}\n${mathImports}\n${utilsImports}\n\n${defs}`;
         })
         .with({ type: "Definition" }, (def) => {
           const body = this._compile(def.body);
@@ -137,16 +145,22 @@ class Compiler {
         })
 
         .with({ type: "CallExpression" }, (expr) => {
+          if (expr.callee.type === "MemberExpression") {
+            return this.compileMethodCall(expr);
+          }
+
           const evaledArgs = expr.arguments.map((e) => ({
             name: this.freshId(),
             expr: this._compile(e),
           }));
 
           const cont = (args: { name: string; expr: string }[]): string => {
-            if (args.length === 0) {
+            if (args.length === 0 && expr.arguments.length !== 0) {
               return `${this._compile(expr.callee)}<${evaledArgs
                 .map((arg) => arg.name)
                 .join(",")}>`;
+            } else if (args.length === 0) {
+              return this._compile(expr.callee);
             }
 
             const [a, ...rest] = args;
@@ -216,8 +230,67 @@ class Compiler {
         .with({ type: "StringKeyword" }, (lit) => {
           return "string";
         })
-        .otherwise(() => "unimplemented")
+        .with({ type: "Tuple" }, (lit) => {
+          return `[${lit.elements.map((e) => this._compile(e)).join(", ")}]`;
+        })
+        .otherwise(() => `unimplemented, ${JSON.stringify(ast, null, 2)}`)
     );
+  }
+
+  private compileMethodCall(
+    expr: Extract<Expression, { type: "CallExpression" }>
+  ) {
+    const callee = expr.callee;
+    if (callee.type !== "MemberExpression") {
+      throw new Error("Expected callee to be a MemberExpression");
+    }
+
+    this.imports.hot.add("Pipe");
+
+    const fun = match(callee.property)
+      .with({ type: "Identifier", name: "sort" }, () => {
+        this.imports.hot.add("Tuples");
+        return "Tuples.Sort";
+      })
+      .with({ type: "Identifier", name: "sum" }, () => {
+        this.imports.hot.add("Tuples");
+        return "Tuples.Sum";
+      })
+      .with({ type: "Identifier", name: "head" }, () => {
+        this.imports.hot.add("Tuples");
+        return "Tuples.Head";
+      })
+      .with({ type: "Identifier", name: "tail" }, () => {
+        this.imports.hot.add("Tuples");
+        return "Tuples.Tail";
+      })
+      .with({ type: "Identifier", name: "last" }, () => {
+        this.imports.hot.add("Tuples");
+        return "Tuples.Last";
+      })
+      .with({ type: "Identifier", name: "at" }, () => {
+        this.imports.hot.add("Tuples");
+        return `Tuples.At<${expr.arguments
+          .map((arg) => this._compile(arg))
+          .join(",")}>`;
+      })
+      .with({ type: "Identifier", name: "drop" }, () => {
+        this.imports.hot.add("Tuples");
+        return `Tuples.Drop<${expr.arguments
+          .map((arg) => this._compile(arg))
+          .join(",")}>`;
+      })
+      .with({ type: "Identifier", name: "take" }, () => {
+        this.imports.hot.add("Tuples");
+        return `Tuples.Take<${expr.arguments
+          .map((arg) => this._compile(arg))
+          .join(",")}>`;
+      })
+      .otherwise(() => {
+        throw new Error("unimplemented method " + callee.property);
+      });
+
+    return `(Pipe<${this._compile(callee.object)}, [${fun}]>)`;
   }
 
   private declareVariable(
@@ -239,12 +312,8 @@ const compiler = new Compiler();
 fs.writeFileSync(
   "tmp/test.generated.ts",
   compiler.compile(`
-  type fib(n: number) = :{
-    if n < 2 then n
-    else fib(n - 1) + fib(n - 2)
-  }
-
-  type test = fib(10)
+  
+  type hello = [2, 1, 3, 4, 5].sort().drop(3)
 
 `)
 );
