@@ -17,6 +17,7 @@ class Compiler {
     hot: new Set(),
   };
   private nextId = 1;
+  private lambdas: Record<string, { argCount: number; code: string }> = {};
 
   compile(tartakCode: string) {
     const ast = this.parser.parse(tartakCode);
@@ -52,7 +53,17 @@ class Compiler {
                 )} } from "hotscript"`
               : "";
 
-          return `${hotImports}\n${mathImports}\n${utilsImports}\n\n${defs}`;
+          const lambdaDefs = Object.values(this.lambdas)
+            .map((l) => l.code)
+            .join(";\n\n");
+
+          return `${hotImports}
+${mathImports}
+${utilsImports}
+
+${lambdaDefs}
+
+${defs}`;
         })
         .with({ type: "Definition" }, (def) => {
           const body = this._compile(def.body);
@@ -145,6 +156,14 @@ class Compiler {
         })
 
         .with({ type: "CallExpression" }, (expr) => {
+          // TODO: this doesn't work yet, because I don't know how to check if a function is a partial apply.
+          // needs more bookkeeping
+          const isPartialApply = false;
+          if (isPartialApply) {
+            this.imports.hot.add("PartialApply");
+          } else {
+            this.imports.hot.add("Apply");
+          }
           if (expr.callee.type === "MemberExpression") {
             return this.compileMethodCall(expr);
           }
@@ -156,9 +175,11 @@ class Compiler {
 
           const cont = (args: { name: string; expr: string }[]): string => {
             if (args.length === 0 && expr.arguments.length !== 0) {
-              return `${this._compile(expr.callee)}<${evaledArgs
+              return `${
+                isPartialApply ? "PartialApply" : "Apply"
+              }<${this._compile(expr.callee)}, [${evaledArgs
                 .map((arg) => arg.name)
-                .join(",")}>`;
+                .join(",")}]>`;
             } else if (args.length === 0) {
               return this._compile(expr.callee);
             }
@@ -172,6 +193,30 @@ class Compiler {
           };
 
           return "(" + cont(evaledArgs) + ")";
+        })
+
+        .with({ type: "Lambda" }, (lambda) => {
+          this.imports.hot.add("Fn");
+
+          // TODO: don't replace idents with the same name, but referring to some
+          // other, nested variable (detect if recursion should be stopped in nested lambdas)
+          let body = lambda.body;
+          // replace identifiers
+          lambda.params.forEach((param, idx) => {
+            this.updateIdentifier(body, param.name, `this["arg${idx}"]`);
+          });
+
+          const compiledBody = this._compile(body);
+
+          const fnName = `lambda_${this.freshId()}`;
+          this.lambdas[fnName] = {
+            code: `interface ${fnName} extends Fn {
+            return: ${compiledBody}
+          }`,
+            argCount: lambda.params.length,
+          };
+
+          return fnName;
         })
 
         .with({ type: "BlockExpression" }, (expr) => {
@@ -237,6 +282,74 @@ class Compiler {
     );
   }
 
+  private updateIdentifier(
+    e: Expression,
+    ident: string,
+    newIdent: string
+  ): void {
+    match(e)
+      .with({ type: "Identifier" }, (e) => {
+        if (e.name === ident) {
+          e.name = newIdent;
+        }
+      })
+      .with({ type: "BlockExpression" }, (e) => {
+        e.body.forEach((s) => {
+          if (s.type === "VariableDeclaration") {
+            this.updateIdentifier(s.expr, ident, newIdent);
+          }
+        });
+      })
+      .with({ type: "BinaryExpression" }, (e) => {
+        this.updateIdentifier(e.left, ident, newIdent);
+        this.updateIdentifier(e.right, ident, newIdent);
+      })
+      .with({ type: "CallExpression" }, (e) => {
+        e.arguments.forEach((a) => {
+          this.updateIdentifier(a, ident, newIdent);
+        });
+      })
+      .with({ type: "ConditionalExpression" }, (e) => {
+        this.updateIdentifier(e.test, ident, newIdent);
+        this.updateIdentifier(e.consequence, ident, newIdent);
+        this.updateIdentifier(e.alternative, ident, newIdent);
+      })
+      .with({ type: "MemberExpression" }, (e) => {
+        this.updateIdentifier(e.object, ident, newIdent);
+        this.updateIdentifier(e.property, ident, newIdent);
+      })
+      .with({ type: "Lambda" }, (e) => {
+        // TODO: check if lambdas params overshadow the ident
+        // e.params.forEach((p) => {
+        //   this.updateIdentifier(p, ident, newIdent);
+        // });
+        // this.updateIdentifier(e.body, ident, newIdent);
+      })
+      .with({ type: "AssignmentExpression" }, (e) => {
+        this.updateIdentifier(e.left, ident, newIdent);
+        this.updateIdentifier(e.right, ident, newIdent);
+      })
+      .with({ type: "LogicalExpression" }, (e) => {
+        this.updateIdentifier(e.left, ident, newIdent);
+        this.updateIdentifier(e.right, ident, newIdent);
+      })
+      .with({ type: "Tuple" }, (e) => {
+        e.elements.forEach((el) => {
+          this.updateIdentifier(el, ident, newIdent);
+        });
+      })
+      .with(
+        {
+          type: "UnaryExpression",
+        },
+        (e) => {
+          this.updateIdentifier(e.argument, ident, newIdent);
+        }
+      )
+
+      .otherwise((e) => e);
+  }
+
   private compileMethodCall(
     expr: Extract<Expression, { type: "CallExpression" }>
   ) {
@@ -286,6 +399,13 @@ class Compiler {
           .map((arg) => this._compile(arg))
           .join(",")}>`;
       })
+
+      .with({ type: "Identifier", name: "map" }, () => {
+        this.imports.hot.add("Tuples");
+        return `Tuples.Map<${expr.arguments
+          .map((arg) => this._compile(arg))
+          .join(",")}>`;
+      })
       .otherwise(() => {
         throw new Error("unimplemented method " + callee.property);
       });
@@ -313,7 +433,7 @@ fs.writeFileSync(
   "tmp/test.generated.ts",
   compiler.compile(`
   
-  type hello = [2, 1, 3, 4, 5].sort().drop(3)
+  type test = [1, 2].map(\\(x) => x + 1)
 
 `)
 );

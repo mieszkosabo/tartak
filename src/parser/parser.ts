@@ -388,7 +388,7 @@ export class Parser {
       type: "CallExpression",
       callee,
       arguments: this.Arguments(),
-    } as Expression;
+    } as Extract<Expression, { type: "CallExpression" }>;
 
     if (this.lookahead?.type === "(") {
       return this._CallExpression(callExpr);
@@ -524,7 +524,8 @@ export class Parser {
       tokenType === "STRING" ||
       tokenType === "number" ||
       tokenType === "string" ||
-      tokenType === "["
+      tokenType === "[" ||
+      tokenType === "\\"
     );
   }
 
@@ -571,9 +572,24 @@ export class Parser {
         return this.StringLiteral();
       case "[":
         return this.TupleLiteral();
+      case "\\":
+        return this.Lambda();
     }
 
     throw new SyntaxError(`Unexpected literal production`);
+  }
+
+  private Lambda(): Expression {
+    this.eat("\\");
+    const params = this.ParameterList();
+    this.eat("=>");
+    const body = this.Expression();
+
+    return {
+      type: "Lambda",
+      params,
+      body,
+    };
   }
 
   private StringLiteral(): Expression {

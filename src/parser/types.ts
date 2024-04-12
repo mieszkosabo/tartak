@@ -25,6 +25,7 @@ export type Literal =
   | { type: "StringLiteral"; value: string }
   | { type: "NumberKeyword" }
   | { type: "Tuple"; elements: Expression[] }
+  | { type: "Lambda"; params: Param[]; body: Expression }
   | { type: "StringKeyword" };
 
 export type Statement =
