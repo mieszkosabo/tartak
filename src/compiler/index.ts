@@ -7,14 +7,13 @@ class Compiler {
   private ast: TartakAST | null = null;
   private parser = new Parser();
   private imports: {
-    math: Set<string>;
-    utils: Set<string>;
     hot: Set<string>;
-    // local: Set<string>;
+    math: Set<string>;
+    prelude: Set<string>;
   } = {
-    math: new Set(),
-    utils: new Set(),
     hot: new Set(),
+    math: new Set(),
+    prelude: new Set(),
   };
   private nextId = 1;
   private lambdas: Record<string, { argCount: number; code: string }> = {};
@@ -34,23 +33,23 @@ class Compiler {
             })
             .join(";\n\n");
 
+          const hotImports =
+            this.imports.hot.size > 0
+              ? `import { type ${Array.from(this.imports.hot.values()).join(
+                  ", type "
+                )} } from "hotscript"`
+              : "";
           const mathImports =
             this.imports.math.size > 0
               ? `import { type ${Array.from(this.imports.math.values()).join(
                   ", type "
                 )} } from "ts-arithmetic"`
               : "";
-          const utilsImports =
-            this.imports.utils.size > 0
-              ? `import { type ${Array.from(this.imports.utils.values()).join(
+          const preludeImports =
+            this.imports.prelude.size > 0
+              ? `import { type ${Array.from(this.imports.prelude.values()).join(
                   ", type "
-                )} } from "type-fest"`
-              : "";
-          const hotImports =
-            this.imports.hot.size > 0
-              ? `import { type ${Array.from(this.imports.hot.values()).join(
-                  ", type "
-                )} } from "hotscript"`
+                )} } from "@/prelude"`
               : "";
 
           const lambdaDefs = Object.values(this.lambdas)
@@ -59,18 +58,26 @@ class Compiler {
 
           return `${hotImports}
 ${mathImports}
-${utilsImports}
+${preludeImports}
 
 ${lambdaDefs}
 
 ${defs}`;
         })
         .with({ type: "Definition" }, (def) => {
-          const body = this._compile(def.body);
-          const params = def.params.map((p) => this._compile(p));
-          return `type ${def.name}${
-            params.length > 0 ? `<${params.join(",")}>` : ""
-          } = ${body}`;
+          if (def.params.length > 0) {
+            // we want to keep all functions as lambdas, so we can partially apply them
+            const lambdaExpr: Expression = {
+              type: "Lambda",
+              params: def.params,
+              body: def.body,
+            };
+            const lambdaName = this._compile(lambdaExpr);
+
+            return `type ${def.name} = ${lambdaName}`;
+          } else {
+            return `type ${def.name} = ${this._compile(def.body)}`;
+          }
         })
 
         .with({ type: "Param" }, (param) => {
@@ -122,9 +129,9 @@ ${defs}`;
               };
             })
             .with("==", () => {
-              this.imports.utils.add("IsEqual");
+              this.imports.hot.add("Booleans");
               return {
-                fName: "IsEqual",
+                fName: "Booleans.IsEqual",
                 leftType: null,
                 rightType: null,
               };
@@ -142,15 +149,22 @@ ${defs}`;
           const leftId = this.freshId();
           const rightId = this.freshId();
 
+          const call =
+            expr.operator === "=="
+              ? `Call<${fn.fName}, ${leftId}, ${rightId}> ${
+                  shouldAdjust ? "extends 1 ? true : false" : ""
+                }`
+              : `${fn.fName}<${leftId}, ${rightId}> ${
+                  shouldAdjust ? "extends 1 ? true : false" : ""
+                }`;
+
           return `(${left} extends infer ${leftId} ${
             fn.leftType ? `extends ${fn.leftType}` : ""
           }
             ? ${right} extends infer ${rightId} ${
             fn.leftType ? `extends ${fn.leftType}` : ""
           }
-              ? (${fn.fName}<${leftId}, ${rightId}> ${
-            shouldAdjust ? "extends 1 ? true : false" : ""
-          })
+              ? (${call})
               : never
             : never)`;
         })
@@ -159,11 +173,10 @@ ${defs}`;
           // TODO: this doesn't work yet, because I don't know how to check if a function is a partial apply.
           // needs more bookkeeping
           const isPartialApply = false;
-          if (isPartialApply) {
-            this.imports.hot.add("PartialApply");
-          } else {
-            this.imports.hot.add("Apply");
-          }
+
+          this.imports.hot.add("PartialApply");
+          this.imports.hot.add("Apply");
+
           if (expr.callee.type === "MemberExpression") {
             return this.compileMethodCall(expr);
           }
@@ -175,11 +188,14 @@ ${defs}`;
 
           const cont = (args: { name: string; expr: string }[]): string => {
             if (args.length === 0 && expr.arguments.length !== 0) {
-              return `${
-                isPartialApply ? "PartialApply" : "Apply"
-              }<${this._compile(expr.callee)}, [${evaledArgs
-                .map((arg) => arg.name)
-                .join(",")}]>`;
+              const args = evaledArgs.map((arg) => arg.name).join(",");
+              // FIXME: this is a temporary hack to make it work: we call a fun with Apply, and if it
+              // extends never, then we call it with PartialApply lol
+              return `(Apply<${this._compile(
+                expr.callee
+              )}, [${args}]>) extends never
+                ? (PartialApply<${this._compile(expr.callee)}, [${args}]>)
+                : (Apply<${this._compile(expr.callee)}, [${args}]>)`;
             } else if (args.length === 0) {
               return this._compile(expr.callee);
             }
@@ -401,6 +417,7 @@ ${defs}`;
       })
 
       .with({ type: "Identifier", name: "map" }, () => {
+        // TODO: use MapWithCaptures so that captures work
         this.imports.hot.add("Tuples");
         return `Tuples.Map<${expr.arguments
           .map((arg) => this._compile(arg))
@@ -433,7 +450,13 @@ fs.writeFileSync(
   "tmp/test.generated.ts",
   compiler.compile(`
   
-  type test = [1, 2].map(\\(x) => x + 1)
+  // type yo(n: number) = [1, 2, 3].map(\\(x) => x + n)
+
+  // type tests = yo(10)
+
+  type fib(n: number) = if n < 2 then n else fib(n - 1) + fib(n - 2)
+
+  type test = fib(10)
 
 `)
 );
