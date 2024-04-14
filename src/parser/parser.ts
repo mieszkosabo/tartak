@@ -22,22 +22,59 @@ export class Parser {
   private Program() {
     return {
       type: "Program",
-      body: this.DefinitionList(),
+      body: this.DefinitionOrSectionList(),
     } as const;
   }
 
-  // DefinitionList: Definition | DefinitionList Definition;
+  // DefinitionOrSectionList: Definition | Section | DefinitionOrSectionList ...;
   //
   // Since we use a recursive descent parser, we can't do left recursion,
   // so the above rule (and everywhere else) will be implemented with a loop.
-  private DefinitionList(stopToken: Token["type"] | null = null) {
-    const definitions = [this.Definition()];
+  private DefinitionOrSectionList(stopToken: Token["type"] | null = null) {
+    const definitions = [this.DefinitionOrSection()];
 
     while (this.lookahead !== null && this.lookahead.type !== stopToken) {
-      definitions.push(this.Definition());
+      definitions.push(this.DefinitionOrSection());
     }
 
     return definitions;
+  }
+
+  /**
+   * DefinitionOrSection
+   *  : Definition | Section;
+   */
+  private DefinitionOrSection() {
+    if (this.lookahead?.type === "type") {
+      return this.Definition();
+    } else if (this.lookahead?.type === "#") {
+      return this.Section();
+    }
+
+    throw new SyntaxError(
+      `Unexpected token: \`${this.lookahead}\`. Should be a definition or section.`
+    );
+  }
+
+  /**
+   * Section
+   *  : '#' '[' Identifier ']' BlockExpression
+   */
+  private Section() {
+    this.eat("#");
+    this.eat("[");
+    const name = this.Identifier();
+    this.eat("]");
+    const body = this.BlockExpression() as Extract<
+      Expression,
+      { type: "BlockExpression" }
+    >;
+
+    return {
+      type: "Section",
+      name: name.name,
+      body: body.body,
+    } as const;
   }
 
   // Definition: "type" Identifier "=" Type ";";
@@ -118,12 +155,40 @@ export class Parser {
    *  ;
    */
   private Statement(): Statement {
+    switch (this.lookahead?.value) {
+      case "AssertEqual":
+        return this.AssertEqual();
+    }
+
     switch (this.lookahead?.type) {
       case "let":
         return this.VariableDeclaration();
       default:
         return this.ExpressionStatement();
     }
+  }
+
+  /**
+   * AssertEqual
+   *  : 'AssertEqual' '(' Expression ',' Expression ')'
+   */
+  private AssertEqual() {
+    const id = this.eat("IDENTIFIER");
+    if (id.value !== "AssertEqual") {
+      throw new SyntaxError(`Expected AssertEqual, got ${id}`);
+    }
+
+    this.eat("(");
+    const left = this.Expression();
+    this.eat(",");
+    const right = this.Expression();
+    this.eat(")");
+
+    return {
+      type: "AssertEqual",
+      left,
+      right,
+    } as const;
   }
 
   /**

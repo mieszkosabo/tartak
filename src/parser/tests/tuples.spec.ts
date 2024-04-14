@@ -1,7 +1,7 @@
 import { test } from "vitest";
 import { testExpression } from "./helpers";
 
-test("primitives", () => {
+test("tuples", () => {
   testExpression(`[]`, { type: "Tuple", elements: [] });
   testExpression(`[1, 2, 3]`, {
     type: "Tuple",

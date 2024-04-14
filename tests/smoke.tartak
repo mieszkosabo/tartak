@@ -1,0 +1,7 @@
+type a = 42
+type b = a + 1
+
+#[test] :{
+  AssertEqual(a, 42)
+  AssertEqual(b, 43)
+}

@@ -3,7 +3,7 @@ import { Parser } from "../parser/parser";
 import type { Expression, Statement, TartakAST } from "../parser/types";
 import fs from "node:fs";
 
-class Compiler {
+export class Compiler {
   private ast: TartakAST | null = null;
   private parser = new Parser();
   private imports: {
@@ -80,10 +80,29 @@ ${defs}`;
           }
         })
 
+        .with({ type: "Section" }, (section) => {
+          const body = section.body.map((s) => this._compile(s)).join("\n");
+          return `// ${section.name}
+namespace ${section.name} {
+  ${body}
+}`;
+        })
+
         .with({ type: "Param" }, (param) => {
           return `${param.name}${
             param.paramType ? ` extends ${this._compile(param.paramType)}` : ""
           }`;
+        })
+
+        .with({ type: "AssertEqual" }, (ass) => {
+          this.imports.hot.add("Booleans");
+          this.imports.hot.add("Call");
+          this.imports.prelude.add("Expect");
+
+          const left = this._compile(ass.left);
+          const right = this._compile(ass.right);
+
+          return `type ${this.freshId()} = Expect<Call<Booleans.Equals<${left}, ${right}>>>`;
         })
 
         //Expressions
@@ -443,20 +462,3 @@ ${defs}`;
     return `temp_${this.nextId++}`;
   }
 }
-
-const compiler = new Compiler();
-
-fs.writeFileSync(
-  "tmp/test.generated.ts",
-  compiler.compile(`
-  
-  // type yo(n: number) = [1, 2, 3].map(\\(x) => x + n)
-
-  // type tests = yo(10)
-
-  type fib(n: number) = if n < 2 then n else fib(n - 1) + fib(n - 2)
-
-  type test = fib(10)
-
-`)
-);

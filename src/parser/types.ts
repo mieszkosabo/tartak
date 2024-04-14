@@ -13,11 +13,18 @@ export type Definition = {
   body: Expression;
 };
 
+export type Section = {
+  type: "Section";
+  name: string;
+  body: Statement[];
+};
+
 export type TartakAST =
   | { type: "Program"; body: Definition[] }
   | Definition
   | Expression
   | Param
+  | Section
   | Statement;
 
 export type Literal =
@@ -37,6 +44,11 @@ export type Statement =
   | {
       type: "ExpressionStatement";
       expression: Expression;
+    }
+  | {
+      type: "AssertEqual";
+      left: Expression;
+      right: Expression;
     };
 
 export type Expression =

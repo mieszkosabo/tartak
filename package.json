@@ -1,7 +1,10 @@
 {
   "name": "tartak",
-  "module": "src/index.ts",
+  "module": "src/cli/index.ts",
   "type": "module",
+  "scripts": {
+    "test:e2e": "bun . && tsc -p tsconfig.test.json"
+  },
   "devDependencies": {
     "@types/bun": "latest",
     "vitest": "^1.4.0"
