@@ -150,7 +150,7 @@ namespace ${section.name} {
             .with("==", () => {
               this.imports.hot.add("Booleans");
               return {
-                fName: "Booleans.IsEqual",
+                fName: "Booleans.Equals",
                 leftType: null,
                 rightType: null,
               };

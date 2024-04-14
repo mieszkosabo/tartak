@@ -1,0 +1,11 @@
+type a = [];
+type b = [1, 2, 3];
+
+type c = b.map((x) => x + 1)
+
+
+#[test] :{
+  AssertEqual(a, []);
+  AssertEqual(b, [1, 2, 3]);
+  AssertEqual(c, [2, 3, 4]);
+}
