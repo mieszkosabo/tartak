@@ -11,7 +11,3 @@ type c = b.map((x) => x + 1)
 }
 
 // hello
-
-if (a) {
-  
-}

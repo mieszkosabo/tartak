@@ -13,6 +13,7 @@ const removeExtension = (filename: string) => {
 };
 
 for (const file of files) {
+  console.log(`Compiling ${file}`);
   const compiler = new Compiler();
   const filePath = path.join(dir, file);
   const contents = fs.readFileSync(filePath);
