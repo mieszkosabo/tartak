@@ -1,3 +1,4 @@
+import { P, match } from "ts-pattern";
 import { Tokenizer, type Token } from "./tokenizer";
 import type { Definition, Expression, Param, Statement } from "./types";
 
@@ -52,7 +53,7 @@ export class Parser {
     }
 
     throw new SyntaxError(
-      `Unexpected token: \`${this.lookahead}\`. Should be a definition or section.`
+      `Unexpected token: "${this.lookahead?.type}". Should be a definition or section.`
     );
   }
 
@@ -88,6 +89,10 @@ export class Parser {
     this.eat("=");
 
     const body = this.Type();
+
+    if (this.lookahead?.type === ";") {
+      this.eat(";");
+    }
 
     return {
       type: "Definition",
@@ -183,6 +188,10 @@ export class Parser {
     this.eat(",");
     const right = this.Expression();
     this.eat(")");
+
+    if (this.lookahead?.type === ";") {
+      this.eat(";");
+    }
 
     return {
       type: "AssertEqual",
@@ -536,6 +545,19 @@ export class Parser {
     return object;
   }
 
+  private isLambda(): boolean {
+    const nextTokens = [this.lookahead as Token, ...this.tokenizer.peek(3)].map(
+      (t) => t.type
+    );
+
+    return match(nextTokens)
+      .with(["IDENTIFIER", "=>", P._, P._], () => true)
+      .with(["(", ")", "=>", P._], () => true)
+      .with(["(", "IDENTIFIER", ")", "=>"], () => true)
+      .with(["(", "IDENTIFIER", ",", P._], () => true)
+      .otherwise(() => false);
+  }
+
   /**
    * PrimaryExpression
    *  : Literal
@@ -546,6 +568,10 @@ export class Parser {
    *  ;
    */
   private PrimaryExpression(): Expression {
+    if (this.isLambda()) {
+      return this.Lambda();
+    }
+
     if (this._isLiteral(this.lookahead?.type)) {
       return this.Literal();
     }
@@ -637,16 +663,22 @@ export class Parser {
         return this.StringLiteral();
       case "[":
         return this.TupleLiteral();
-      case "\\":
-        return this.Lambda();
     }
 
     throw new SyntaxError(`Unexpected literal production`);
   }
 
   private Lambda(): Expression {
-    this.eat("\\");
-    const params = this.ParameterList();
+    const params =
+      this.lookahead?.type !== "("
+        ? // case: a => 42
+          [this.Param()]
+        : // case: () => 42
+        this.tokenizer.peek(1)[0].type === ")" && this.eat("(") && this.eat(")")
+        ? []
+        : // case: (a) => 42, or (a, b) => 42, etc.
+          this.ParameterList();
+
     this.eat("=>");
     const body = this.Expression();
 

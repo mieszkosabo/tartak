@@ -122,6 +122,25 @@ export class Tokenizer {
     throw new SyntaxError(`Unexpected token: ${tail[0]}`);
   }
 
+  // returns a copy of next n tokens ahead
+  peek(n: number): Token[] {
+    const tokens: Token[] = [];
+    const cursor = this.cursor;
+
+    for (let i = 0; i < n; i++) {
+      const token = this.nextToken();
+      if (token === null) {
+        break;
+      }
+      tokens.push(token);
+    }
+
+    // restore cursor
+    this.cursor = cursor;
+
+    return tokens;
+  }
+
   private match(regex: RegExp, str: string) {
     const matched = regex.exec(str);
     if (matched === null) {

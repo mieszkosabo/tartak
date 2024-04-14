@@ -1,0 +1,7 @@
+
+type basic = a => a;
+type basic2 = () => 42;
+type basic3 = (a) => a;
+type basic4 = (a, b) => a + b;
+type basic5 = ((a, b) => a + b);
+type basic6 = (42);
