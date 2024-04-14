@@ -1,0 +1,11 @@
+type a = number
+type b = string
+type c = "hello"
+type d = 42
+
+#[test] :{
+  AssertEqual(a, number)
+  AssertEqual(b, string)
+  AssertEqual(c, "hello")
+  AssertEqual(d, 42)
+}

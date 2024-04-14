@@ -1,0 +1,23 @@
+type a = :{
+  let a = 42;
+  let b = 1;
+  a + b // last expression in a block is the value of the expression block
+}
+
+type nestedBlocks = :{
+  let a = 1;
+  let b = :{
+    let c = :{
+      let b = 5;
+      b
+    }
+    c
+  }
+  
+  a + b
+}
+
+#[test] :{
+  AssertEqual(a, 43)
+  AssertEqual(nestedBlocks, 6)
+}

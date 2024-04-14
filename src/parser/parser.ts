@@ -207,7 +207,7 @@ export class Parser {
 
   /**
    * VariableDeclaration
-   *  : 'let' IDENTIFIER '=' Expression ';'
+   *  : 'let' IDENTIFIER '=' Expression OptionalSemicolon
    *  ;
    */
   private VariableDeclaration() {
@@ -215,7 +215,7 @@ export class Parser {
     let id = this.Identifier();
     this.eat("=");
     let expr = this.Expression();
-    this.eat(";");
+    this.lookahead?.type === ";" ? this.eat(";") : null;
 
     return {
       type: "VariableDeclaration",

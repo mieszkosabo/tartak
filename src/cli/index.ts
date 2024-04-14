@@ -19,7 +19,7 @@ for (const file of files) {
 
   const compiled = compiler.compile(contents.toString());
 
-  const compiledPath = path.join(dir, `${file}.generated.ts`);
+  const compiledPath = path.join(dir, `${file}.ts`);
 
   fs.writeFileSync(compiledPath, compiled);
 }
