@@ -9,3 +9,9 @@ type c = b.map((x) => x + 1)
   AssertEqual(b, [1, 2, 3]);
   AssertEqual(c, [2, 3, 4]);
 }
+
+// hello
+
+if (a) {
+  
+}

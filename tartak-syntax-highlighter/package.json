@@ -1,0 +1,25 @@
+{
+  "name": "tartak-syntax-highlighter",
+  "displayName": "Tartak Syntax Highlighter",
+  "description": "Syntax highlighting for Tartak.",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.88.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [{
+      "id": "tartak",
+      "aliases": ["Tartak", "tartak"],
+      "extensions": [".tartak"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "tartak",
+      "scopeName": "source.tartak",
+      "path": "./syntaxes/tartak.tmLanguage.json"
+    }]
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Tartak",
+  "patterns": [
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#assOperator"
+    },
+    {
+      "include": "#singleStrings"
+    },
+    {
+      "include": "#doubleStrings"
+    },
+    {
+      "include": "#true"
+    },
+    {
+      "include": "#false"
+    },
+    {
+      "include": "#storage"
+    },
+    {
+      "include": "#numeric"
+    },
+    {
+      "include": "#ident"
+    }
+  ],
+  "repository": {
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.tartak",
+          "match": "\\b(if|then|else)\\b"
+        }
+      ]
+    },
+    "doubleStrings": {
+      "name": "string.quoted.double.tartak",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.tartak",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "singleStrings": {
+      "name": "string.quoted.double.tartak",
+      "begin": "'",
+      "end": "'",
+      "patterns": [
+        {
+          "name": "constant.character.escape.tartak",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "assOperator": {
+      "name": "keyword.operator.assignment.tartak",
+      "match": "="
+    },
+    "true": {
+      "name": "constant.language.boolean.true.tartak",
+      "match": "\\btrue\\b"
+    },
+    "false": {
+      "name": "constant.language.boolean.false.tartak",
+      "match": "\\bfalse\\b"
+    },
+    "storage": {
+      "name": "storage.type.tartak",
+      "match": "\\b(type|let)\\b"
+    },
+    "numeric": {
+      "name": "constant.numeric.tartak",
+      "match": "\\b[0-9]+\\b"
+    },
+    "ident": {
+      "name": "variable.other",
+      "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b"
+    }
+  },
+  "scopeName": "source.tartak"
+}
