@@ -38,7 +38,11 @@ export class Compiler {
         .with({ type: "Program" }, (program) => {
           const defs = program.body
             .map((def) => {
-              return this._compile(def, env);
+              return this._compile(def, {
+                innerScope: [],
+                outerScope: [],
+                params: [],
+              });
             })
             .join(";\n\n");
 
@@ -125,9 +129,9 @@ namespace ${section.name} {
           const maybeParamsIdx = env.params.indexOf(ident.name);
 
           if (maybeOuterScopeIdx !== -1) {
-            return `this["arg0"][${maybeOuterScopeIdx}]`;
+            return `this["arg0"][${maybeOuterScopeIdx}] /** ${ident.name} */`;
           } else if (maybeParamsIdx !== -1) {
-            return `this["arg1"][${maybeParamsIdx}]`;
+            return `this["arg1"][${maybeParamsIdx}] /** ${ident.name} */`;
           }
 
           // default: inner scope variable or global identifier
@@ -230,21 +234,21 @@ namespace ${section.name} {
           }));
 
           const cont = (args: { name: string; expr: string }[]): string => {
+            let evaledCallee = this._compile(expr.callee, env);
+            // FIXME: this whole thing is a mess, typechecker will solve this (maybe)
+            if (env.innerScope.includes(evaledCallee)) {
+              evaledCallee += ` extends Fn ? ${evaledCallee} : never`;
+            }
             if (args.length === 0 && expr.arguments.length !== 0) {
               const args = evaledArgs.map((arg) => arg.name).join(",");
               // FIXME: this is a temporary hack to make it work: we call a fun with Apply, and if it
               // extends never, then we call it with PartialApply lol
-              return `(Apply<${this._compile(
-                expr.callee,
-                env
-              )}, [[${args}]]>) extends never
-                ? (PartialApply<${this._compile(
-                  expr.callee,
-                  env
-                )}, [[${args}]]>)
-                : (Apply<${this._compile(expr.callee, env)}, [[${args}]]>)`;
+
+              return `(Apply<${evaledCallee}, [[${args}]]>) extends never
+                ? (PartialApply<${evaledCallee}, [[${args}]]>)
+                : (Apply<${evaledCallee}, [[${args}]]>)`;
             } else if (args.length === 0) {
-              return this._compile(expr.callee, env);
+              return evaledCallee;
             }
 
             const [a, ...rest] = args;
@@ -321,15 +325,15 @@ namespace ${section.name} {
           const evaledDeclarations: { name: string; expr: string }[] = [];
 
           for (const decl of declarations) {
+            evaledDeclarations.push({
+              name: decl.name,
+              expr: this._compile(decl.expr, newEnv),
+            });
             newEnv.params = newEnv.params.filter((p) => p !== decl.name);
             newEnv.outerScope = newEnv.outerScope.filter(
               (p) => p !== decl.name
             );
             newEnv.innerScope.push(decl.name);
-            evaledDeclarations.push({
-              name: decl.name,
-              expr: this._compile(decl.expr, newEnv),
-            });
           }
 
           const cont = (

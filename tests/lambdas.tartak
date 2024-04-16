@@ -12,14 +12,15 @@ type hello = :{
 
 
 
-// type yo = (a) => :{
-//   let c = 42;
-//   let d = 1;
+type yo = (a) => :{
+  let c = 42;
+  let d = 1;
 
-//   (b) => a + b + c + d // last expression is returned
-// }
+  (b) => a + b + c + d // last expression is returned
+}
 
 
-// #[test] :{
-//   AssertEqual(yo(1)(6), 50);
-// }
+#[test] :{
+  AssertEqual(hello, 11);
+  AssertEqual(yo(1)(6), 50);
+}
