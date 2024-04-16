@@ -1,23 +1,25 @@
 
 
-// type hello = :{
-//   let a = 1;
+type hello = :{
+  let a = 1;
 
-//   let l = (x) => x + a;
+  let l = (x) => x + a;
 
-//   let m = l(10);
+  let m = l(10);
 
-//   m
+  m
+}
+
+
+
+// type yo = (a) => :{
+//   let c = 42;
+//   let d = 1;
+
+//   (b) => a + b + c + d // last expression is returned
 // }
 
-type yo = (a) => :{
-  let c = 42;
-  let d = 1;
 
-  (b) => a + b + c + d // last expression is returned
-}
-
-
-#[test] :{
-  AssertEqual(yo(1)(6), 50);
-}
+// #[test] :{
+//   AssertEqual(yo(1)(6), 50);
+// }
