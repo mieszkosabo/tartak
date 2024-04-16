@@ -1,7 +1,23 @@
 
-type basic = a => a;
-type basic2 = () => 42;
-type basic3 = (a) => a;
-type basic4 = (a, b) => a + b;
-type basic5 = ((a, b) => a + b);
-type basic6 = (42);
+
+// type hello = :{
+//   let a = 1;
+
+//   let l = (x) => x + a;
+
+//   let m = l(10);
+
+//   m
+// }
+
+type yo = (a) => :{
+  let c = 42;
+  let d = 1;
+
+  (b) => a + b + c + d // last expression is returned
+}
+
+
+#[test] :{
+  AssertEqual(yo(1)(6), 50);
+}

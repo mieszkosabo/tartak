@@ -1,10 +1,15 @@
 import { match } from "ts-pattern";
 import { Parser } from "../parser/parser";
 import type { Expression, Statement, TartakAST } from "../parser/types";
-import fs from "node:fs";
+
+type VarName = string;
+type CompilerEnv = {
+  innerScope: VarName[];
+  outerScope: VarName[];
+  params: VarName[];
+};
 
 export class Compiler {
-  private ast: TartakAST | null = null;
   private parser = new Parser();
   private imports: {
     hot: Set<string>;
@@ -20,16 +25,20 @@ export class Compiler {
 
   compile(tartakCode: string) {
     const ast = this.parser.parse(tartakCode);
-    return this._compile(ast as TartakAST);
+    return this._compile(ast as TartakAST, {
+      innerScope: [],
+      outerScope: [],
+      params: [],
+    });
   }
 
-  private _compile(ast: TartakAST): string {
+  private _compile(ast: TartakAST, env: CompilerEnv): string {
     return (
       match(ast)
         .with({ type: "Program" }, (program) => {
           const defs = program.body
             .map((def) => {
-              return this._compile(def);
+              return this._compile(def, env);
             })
             .join(";\n\n");
 
@@ -72,16 +81,27 @@ ${defs}`;
               params: def.params,
               body: def.body,
             };
-            const lambdaName = this._compile(lambdaExpr);
+
+            const newEnv: CompilerEnv = {
+              params: def.params.map((p) => p.name),
+              outerScope: env.innerScope
+                .concat(env.outerScope)
+                .concat(env.params)
+                .filter((p) => !def.params.some((param) => param.name === p)),
+              innerScope: [],
+            };
+            const lambdaName = this._compile(lambdaExpr, newEnv);
 
             return `type ${def.name} = ${lambdaName}`;
           } else {
-            return `type ${def.name} = ${this._compile(def.body)}`;
+            return `type ${def.name} = ${this._compile(def.body, env)}`;
           }
         })
 
         .with({ type: "Section" }, (section) => {
-          const body = section.body.map((s) => this._compile(s)).join("\n");
+          const body = section.body
+            .map((s) => this._compile(s, env))
+            .join("\n");
           return `// ${section.name}
 namespace ${section.name} {
   ${body}
@@ -90,7 +110,9 @@ namespace ${section.name} {
 
         .with({ type: "Param" }, (param) => {
           return `${param.name}${
-            param.paramType ? ` extends ${this._compile(param.paramType)}` : ""
+            param.paramType
+              ? ` extends ${this._compile(param.paramType, env)}`
+              : ""
           }`;
         })
 
@@ -99,14 +121,24 @@ namespace ${section.name} {
           this.imports.hot.add("Call");
           this.imports.prelude.add("Expect");
 
-          const left = this._compile(ass.left);
-          const right = this._compile(ass.right);
+          const left = this._compile(ass.left, env);
+          const right = this._compile(ass.right, env);
 
           return `type ${this.freshId()} = Expect<Call<Booleans.Equals<${left}, ${right}>>>`;
         })
 
         //Expressions
         .with({ type: "Identifier" }, (ident) => {
+          const maybeOuterScopeIdx = env.outerScope.indexOf(ident.name);
+          const maybeParamsIdx = env.params.indexOf(ident.name);
+
+          if (maybeOuterScopeIdx !== -1) {
+            return `this["arg0"][${maybeOuterScopeIdx}]`;
+          } else if (maybeParamsIdx !== -1) {
+            return `this["arg1"][${maybeParamsIdx}]`;
+          }
+
+          // default: inner scope variable or global identifier
           return ident.name;
         })
         .with({ type: "BinaryExpression" }, (expr) => {
@@ -162,8 +194,8 @@ namespace ${section.name} {
             fn.fName
           );
 
-          const left = this._compile(expr.left);
-          const right = this._compile(expr.right);
+          const left = this._compile(expr.left, env);
+          const right = this._compile(expr.right, env);
 
           const leftId = this.freshId();
           const rightId = this.freshId();
@@ -197,12 +229,12 @@ namespace ${section.name} {
           this.imports.hot.add("Apply");
 
           if (expr.callee.type === "MemberExpression") {
-            return this.compileMethodCall(expr);
+            return this.compileMethodCall(expr, env);
           }
 
           const evaledArgs = expr.arguments.map((e) => ({
             name: this.freshId(),
-            expr: this._compile(e),
+            expr: this._compile(e, env),
           }));
 
           const cont = (args: { name: string; expr: string }[]): string => {
@@ -211,12 +243,16 @@ namespace ${section.name} {
               // FIXME: this is a temporary hack to make it work: we call a fun with Apply, and if it
               // extends never, then we call it with PartialApply lol
               return `(Apply<${this._compile(
-                expr.callee
-              )}, [${args}]>) extends never
-                ? (PartialApply<${this._compile(expr.callee)}, [${args}]>)
-                : (Apply<${this._compile(expr.callee)}, [${args}]>)`;
+                expr.callee,
+                env
+              )}, [[${args}]]>) extends never
+                ? (PartialApply<${this._compile(
+                  expr.callee,
+                  env
+                )}, [[${args}]]>)
+                : (Apply<${this._compile(expr.callee, env)}, [[${args}]]>)`;
             } else if (args.length === 0) {
-              return this._compile(expr.callee);
+              return this._compile(expr.callee, env);
             }
 
             const [a, ...rest] = args;
@@ -232,16 +268,21 @@ namespace ${section.name} {
 
         .with({ type: "Lambda" }, (lambda) => {
           this.imports.hot.add("Fn");
+          this.imports.hot.add("PartialApply");
 
-          // TODO: don't replace idents with the same name, but referring to some
-          // other, nested variable (detect if recursion should be stopped in nested lambdas)
-          let body = lambda.body;
-          // replace identifiers
-          lambda.params.forEach((param, idx) => {
-            this.updateIdentifier(body, param.name, `this["arg${idx}"]`);
-          });
+          const body = lambda.body;
+          const params = lambda.params.map((p) => p.name);
+          const newEnv: CompilerEnv = {
+            params,
+            outerScope: [
+              ...env.innerScope,
+              ...env.outerScope,
+              ...env.params,
+            ].filter((p) => !params.includes(p)),
+            innerScope: [],
+          };
 
-          const compiledBody = this._compile(body);
+          const compiledBody = this._compile(body, newEnv);
 
           const fnName = `lambda_${this.freshId()}`;
           this.lambdas[fnName] = {
@@ -251,50 +292,82 @@ namespace ${section.name} {
             argCount: lambda.params.length,
           };
 
-          return fnName;
+          const passingInnerScope = env.innerScope;
+          const passingScope = env.outerScope.map(
+            (_, idx) => `this["arg0"][${idx}]`
+          );
+          const passingParams = env.params.map(
+            (_, idx) => `this["arg1"][${idx}]`
+          );
+          return `[${passingInnerScope
+            .concat(passingScope)
+            .concat(passingParams)
+            .join(
+              ", "
+            )}] extends infer scope ? PartialApply<${fnName}, [scope]> : never`;
         })
 
         .with({ type: "BlockExpression" }, (expr) => {
           const statements = expr.body;
           if (statements.length === 1) {
-            return this._compile(statements[0]);
+            return this._compile(statements[0], env);
           }
 
           const lastElem = statements.pop();
 
-          const declarations = statements.map((decl) =>
-            this.declareVariable(
+          const declarations = statements.map(
+            (decl) =>
               decl as Extract<Statement, { type: "VariableDeclaration" }>
-            )
           ) as unknown as Extract<Statement, { type: "VariableDeclaration" }>[];
 
+          const newEnv: CompilerEnv = {
+            params: env.params,
+            innerScope: env.innerScope,
+            outerScope: env.outerScope,
+          };
+
+          const evaledDeclarations: { name: string; expr: string }[] = [];
+
+          for (const decl of declarations) {
+            newEnv.params = newEnv.params.filter((p) => p !== decl.name);
+            newEnv.outerScope = newEnv.outerScope.filter(
+              (p) => p !== decl.name
+            );
+            newEnv.innerScope.push(decl.name);
+            evaledDeclarations.push({
+              name: decl.name,
+              expr: this._compile(decl.expr, newEnv),
+            });
+          }
+
           const cont = (
-            decls: Extract<Statement, { type: "VariableDeclaration" }>[],
+            decls: { name: string; expr: string }[],
             lastElem: string
           ): string => {
             if (decls.length === 0) {
               return lastElem;
             } else {
               const [d, ...rest] = decls;
+              // TODO: add `extends ...` based on  the type from type checker
               return `(${d.expr}) extends infer ${d.name}
                 ? (${cont(rest, lastElem)})
                 : never`;
             }
           };
 
-          return cont(declarations, this._compile(lastElem!));
+          return cont(evaledDeclarations, this._compile(lastElem!, newEnv));
         })
 
         .with({ type: "ExpressionStatement" }, (expr) => {
-          return this._compile(expr.expression);
+          return this._compile(expr.expression, env);
         })
 
         .with({ type: "ConditionalExpression" }, (expr) => {
           const { test, consequence, alternative } = expr;
 
-          return `(${this._compile(test)}) extends true
-          ? ${this._compile(consequence)} 
-          : ${this._compile(alternative)}`;
+          return `(${this._compile(test, env)}) extends true
+          ? ${this._compile(consequence, env)}
+          : ${this._compile(alternative, env)}`;
         })
 
         // Literals
@@ -311,82 +384,17 @@ namespace ${section.name} {
           return "string";
         })
         .with({ type: "Tuple" }, (lit) => {
-          return `[${lit.elements.map((e) => this._compile(e)).join(", ")}]`;
+          return `[${lit.elements
+            .map((e) => this._compile(e, env))
+            .join(", ")}]`;
         })
         .otherwise(() => `unimplemented, ${JSON.stringify(ast, null, 2)}`)
     );
   }
 
-  private updateIdentifier(
-    e: Expression,
-    ident: string,
-    newIdent: string
-  ): void {
-    match(e)
-      .with({ type: "Identifier" }, (e) => {
-        if (e.name === ident) {
-          e.name = newIdent;
-        }
-      })
-      .with({ type: "BlockExpression" }, (e) => {
-        e.body.forEach((s) => {
-          if (s.type === "VariableDeclaration") {
-            this.updateIdentifier(s.expr, ident, newIdent);
-          }
-        });
-      })
-      .with({ type: "BinaryExpression" }, (e) => {
-        this.updateIdentifier(e.left, ident, newIdent);
-        this.updateIdentifier(e.right, ident, newIdent);
-      })
-      .with({ type: "CallExpression" }, (e) => {
-        e.arguments.forEach((a) => {
-          this.updateIdentifier(a, ident, newIdent);
-        });
-      })
-      .with({ type: "ConditionalExpression" }, (e) => {
-        this.updateIdentifier(e.test, ident, newIdent);
-        this.updateIdentifier(e.consequence, ident, newIdent);
-        this.updateIdentifier(e.alternative, ident, newIdent);
-      })
-      .with({ type: "MemberExpression" }, (e) => {
-        this.updateIdentifier(e.object, ident, newIdent);
-        this.updateIdentifier(e.property, ident, newIdent);
-      })
-      .with({ type: "Lambda" }, (e) => {
-        // TODO: check if lambdas params overshadow the ident
-        // e.params.forEach((p) => {
-        //   this.updateIdentifier(p, ident, newIdent);
-        // });
-        // this.updateIdentifier(e.body, ident, newIdent);
-      })
-      .with({ type: "AssignmentExpression" }, (e) => {
-        this.updateIdentifier(e.left, ident, newIdent);
-        this.updateIdentifier(e.right, ident, newIdent);
-      })
-      .with({ type: "LogicalExpression" }, (e) => {
-        this.updateIdentifier(e.left, ident, newIdent);
-        this.updateIdentifier(e.right, ident, newIdent);
-      })
-      .with({ type: "Tuple" }, (e) => {
-        e.elements.forEach((el) => {
-          this.updateIdentifier(el, ident, newIdent);
-        });
-      })
-      .with(
-        {
-          type: "UnaryExpression",
-        },
-        (e) => {
-          this.updateIdentifier(e.argument, ident, newIdent);
-        }
-      )
-
-      .otherwise((e) => e);
-  }
-
   private compileMethodCall(
-    expr: Extract<Expression, { type: "CallExpression" }>
+    expr: Extract<Expression, { type: "CallExpression" }>,
+    env: CompilerEnv
   ) {
     const callee = expr.callee;
     if (callee.type !== "MemberExpression") {
@@ -418,44 +426,28 @@ namespace ${section.name} {
       })
       .with({ type: "Identifier", name: "at" }, () => {
         this.imports.hot.add("Tuples");
-        return `Tuples.At<${expr.arguments
-          .map((arg) => this._compile(arg))
-          .join(",")}>`;
+        return `Tuples.At`;
       })
       .with({ type: "Identifier", name: "drop" }, () => {
         this.imports.hot.add("Tuples");
-        return `Tuples.Drop<${expr.arguments
-          .map((arg) => this._compile(arg))
-          .join(",")}>`;
+        return `Tuples.Drop`;
       })
       .with({ type: "Identifier", name: "take" }, () => {
         this.imports.hot.add("Tuples");
-        return `Tuples.Take<${expr.arguments
-          .map((arg) => this._compile(arg))
-          .join(",")}>`;
+        return `Tuples.Take`;
       })
 
       .with({ type: "Identifier", name: "map" }, () => {
-        // TODO: use MapWithCaptures so that captures work
-        this.imports.hot.add("Tuples");
-        return `Tuples.Map<${expr.arguments
-          .map((arg) => this._compile(arg))
-          .join(",")}>`;
+        this.imports.prelude.add("Map");
+        return `Map`;
       })
       .otherwise(() => {
         throw new Error("unimplemented method " + callee.property);
       });
 
-    return `(Pipe<${this._compile(callee.object)}, [${fun}]>)`;
-  }
-
-  private declareVariable(
-    s: Extract<Statement, { type: "VariableDeclaration" }>
-  ) {
-    return {
-      name: s.name,
-      expr: this._compile(s.expr),
-    };
+    return `(${fun}<${expr.arguments
+      .map((arg) => this._compile(arg, env))
+      .join(",")}, ${this._compile(callee.object, env)}>)`;
   }
 
   private freshId() {

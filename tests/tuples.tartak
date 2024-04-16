@@ -3,11 +3,17 @@ type b = [1, 2, 3];
 
 type c = b.map((x) => x + 1)
 
+type d = :{
+  let x = 10;
+
+  [1, 2, 3].map((y) => y + x)
+}
+
 
 #[test] :{
   AssertEqual(a, []);
   AssertEqual(b, [1, 2, 3]);
   AssertEqual(c, [2, 3, 4]);
+  AssertEqual(d, [11, 12, 13]);
 }
 
-// hello
