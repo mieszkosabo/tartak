@@ -82,15 +82,7 @@ ${defs}`;
               body: def.body,
             };
 
-            const newEnv: CompilerEnv = {
-              params: def.params.map((p) => p.name),
-              outerScope: env.innerScope
-                .concat(env.outerScope)
-                .concat(env.params)
-                .filter((p) => !def.params.some((param) => param.name === p)),
-              innerScope: [],
-            };
-            const lambdaName = this._compile(lambdaExpr, newEnv);
+            const lambdaName = this._compile(lambdaExpr, env);
 
             return `type ${def.name} = ${lambdaName}`;
           } else {
@@ -392,6 +384,8 @@ namespace ${section.name} {
     );
   }
 
+  // TODO: apart from `map` other needs to be custom implemented from scratch
+  // to adhere to the scope/params convention I have going on here
   private compileMethodCall(
     expr: Extract<Expression, { type: "CallExpression" }>,
     env: CompilerEnv
