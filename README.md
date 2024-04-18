@@ -3,14 +3,15 @@
 ## TODOs
 
 - [ ] finish type-checker and integrate it with compiler
+- [ ] partial application
 - [ ] string functions
 - [ ] array functions
 - [ ] match
 - [ ] "enums" (data types)
-- [ ] map with captures
+- [x] map with captures
 - [ ] fix all todos and fixmes
-- [ ] first-class testing framework?
-- [ ] syntax highlighting
+- [x] first-class testing framework? (kinda)
+- [x] syntax highlighting (barely works)
 
 ## Syntax highlighting
 

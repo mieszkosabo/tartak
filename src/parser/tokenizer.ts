@@ -78,9 +78,19 @@ export type Token = {
   value: string;
 };
 
+export type Position = {
+  line: number;
+  column: number;
+};
+
 export class Tokenizer {
   private text = "";
   private cursor = 0;
+
+  private position = {
+    line: 1,
+    column: 1,
+  };
 
   init(text: string) {
     this.text = text;
@@ -93,6 +103,13 @@ export class Tokenizer {
 
   hasMoreTokens() {
     return this.cursor < this.text.length;
+  }
+
+  currentPosition(): Position {
+    return {
+      line: this.position.line,
+      column: this.position.column,
+    };
   }
 
   nextToken(): Token | null {
@@ -126,6 +143,10 @@ export class Tokenizer {
   peek(n: number): Token[] {
     const tokens: Token[] = [];
     const cursor = this.cursor;
+    const pos = {
+      line: this.position.line,
+      column: this.position.column,
+    };
 
     for (let i = 0; i < n; i++) {
       const token = this.nextToken();
@@ -135,8 +156,9 @@ export class Tokenizer {
       tokens.push(token);
     }
 
-    // restore cursor
+    // restore cursor & position
     this.cursor = cursor;
+    this.position = pos;
 
     return tokens;
   }
@@ -147,7 +169,21 @@ export class Tokenizer {
       return null;
     }
 
+    const matchedSubstr = this.text.slice(
+      this.cursor,
+      this.cursor + matched[0].length
+    );
+
     this.cursor += matched[0].length;
+    for (const char of matchedSubstr) {
+      if (char === "\n") {
+        this.position.line++;
+        this.position.column = 1;
+      } else {
+        this.position.column++;
+      }
+    }
+
     return matched[0];
   }
 }

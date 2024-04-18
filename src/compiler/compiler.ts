@@ -81,6 +81,7 @@ ${defs}`;
           if (def.params.length > 0) {
             // we want to keep all functions as lambdas, so we can partially apply them
             const lambdaExpr: Expression = {
+              position: def.position,
               type: "Lambda",
               params: def.params,
               body: def.body,

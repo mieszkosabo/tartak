@@ -1,5 +1,5 @@
 import { P, match } from "ts-pattern";
-import { Expression, Statement } from "../parser/types";
+import { Expression, Statement, TartakAST } from "../parser/types";
 
 type Type =
   | { type: "number" }
@@ -8,7 +8,11 @@ type Type =
   | { type: "numberLit"; value: number }
   | { type: "stringLit"; value: string }
   | { type: "true" }
-  | { type: "false" };
+  | { type: "false" }
+  | { type: "tuple"; types: Type[] }
+  | { type: "union"; types: Type[] }
+  | { type: "any" }
+  | { type: "fn"; args: Type[]; returnType: Type };
 
 type Ident = string;
 
@@ -22,6 +26,21 @@ export const checkStatement = (stmt: Statement, env: TypeEnv): TypeEnv =>
         ...env,
         [decl.name]: evalExprType(decl.expr, env),
       } as TypeEnv;
+    })
+    .with({ type: "AssertEqual" }, () => env)
+    .with({ type: "Definition" }, (e) => {
+      const newEnv = e.params.reduce(
+        (acc, curr) => {
+          acc[curr.name] = curr.paramType
+            ? evalExprType(curr.paramType, env)
+            : { type: "any" };
+          return acc;
+        },
+        { ...env }
+      );
+      const returnType = evalExprType(e.body, newEnv);
+
+      return env;
     })
     .exhaustive();
 
@@ -57,7 +76,7 @@ export const evalExprType = (expr: Expression, env: TypeEnv): Type => {
           type: "false",
         }))
         .otherwise(() => {
-          throw new Error("`-` operator used with non-numeric type!");
+          throw new Error("unimplemented unary operator?");
         });
     })
     .with({ type: "LogicalExpression" }, (e) => {
@@ -126,9 +145,64 @@ export const evalExprType = (expr: Expression, env: TypeEnv): Type => {
         newEnv
       );
     })
-    .otherwise(() => {
-      throw new Error("unimplemented");
-    });
+    .with({ type: "AssignmentExpression" }, (e) => {
+      return evalExprType(e.right, env);
+    })
+    .with({ type: "ConditionalExpression" }, (e) => {
+      return {
+        type: "union",
+        types: [
+          evalExprType(e.consequence, env),
+          evalExprType(e.alternative, env),
+        ],
+      };
+    })
+    .with({ type: "Lambda" }, (e) => {
+      const newEnv = e.params.reduce(
+        (acc, curr) => {
+          const paramType = curr.paramType;
+          acc[curr.name] = paramType
+            ? evalExprType(paramType, env)
+            : { type: "any" };
+          return acc;
+        },
+        { ...env }
+      );
+      return {
+        type: "fn",
+        args: e.params.map((p) =>
+          p.paramType ? evalExprType(p.paramType, env) : { type: "any" }
+        ),
+        returnType: evalExprType(e.body, newEnv),
+      };
+    })
+    .with({ type: "Tuple" }, (e) => {
+      return {
+        type: "tuple",
+        types: e.elements.map((el) => evalExprType(el, env)),
+      };
+    })
+    .with({ type: "CallExpression" }, (e) => {
+      const callee = evalExprType(e.callee, env);
+      if (callee.type === "fn") {
+        // TODO: checks
+        return callee.returnType;
+      } else {
+        throw new Error("TypeChecker: callee is not a function");
+      }
+    })
+    .with({ type: "MemberExpression" }, () => {
+      throw new Error("TypeChecker Unimplemented: MemberExpression");
+    })
+    .exhaustive();
 };
 
-// TODO: finish this
+export class TypeChecker {
+  // checkTypes(ast: TartakAST): TypeEnv {
+  //   const env: TypeEnv = {};
+  //   if (ast.type === "Program") {
+  //     ast.
+  //     return checkStatements(ast, {});
+  //   }
+  // }
+}

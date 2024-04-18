@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 import { Parser } from "../parser";
+import { removeKey } from "./helpers";
 
 test("sections", () => {
   const parser = new Parser();
@@ -17,7 +18,7 @@ test("sections", () => {
   
   `);
 
-  expect(result).toEqual({
+  expect(removeKey(result, "position")).toEqual({
     type: "Program",
     body: [
       {

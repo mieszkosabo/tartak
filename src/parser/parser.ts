@@ -22,6 +22,7 @@ export class Parser {
   // In Tartak, a "program" is simply a list of type definitions.
   private Program() {
     return {
+      position: this.tokenizer.currentPosition(),
       type: "Program",
       body: this.DefinitionOrSectionList(),
     } as const;
@@ -62,6 +63,7 @@ export class Parser {
    *  : '#' '[' Identifier ']' BlockExpression
    */
   private Section() {
+    const position = this.tokenizer.currentPosition();
     this.eat("#");
     this.eat("[");
     const name = this.Identifier();
@@ -72,6 +74,7 @@ export class Parser {
     >;
 
     return {
+      position,
       type: "Section",
       name: name.name,
       body: body.body,
@@ -80,6 +83,7 @@ export class Parser {
 
   // Definition: "type" Identifier "=" Type ";";
   private Definition() {
+    const position = this.tokenizer.currentPosition();
     this.eat("type");
 
     const name = this.Identifier().name;
@@ -96,6 +100,7 @@ export class Parser {
 
     return {
       type: "Definition",
+      position,
       params,
       name,
       body,
@@ -126,11 +131,13 @@ export class Parser {
    *  | IdentifierWithType
    */
   Param(): Param {
+    const position = this.tokenizer.currentPosition();
     const ident = this.Identifier();
     const paramType =
       this.lookahead?.type === ":" && this.eat(":") ? this.Expression() : null;
 
     return {
+      position,
       type: "Param",
       name: ident.name,
       paramType,
@@ -178,6 +185,7 @@ export class Parser {
    *  : 'AssertEqual' '(' Expression ',' Expression ')'
    */
   private AssertEqual() {
+    const position = this.tokenizer.currentPosition();
     const id = this.eat("IDENTIFIER");
     if (id.value !== "AssertEqual") {
       throw new SyntaxError(`Expected AssertEqual, got ${id}`);
@@ -194,6 +202,7 @@ export class Parser {
     }
 
     return {
+      position,
       type: "AssertEqual",
       left,
       right,
@@ -206,9 +215,11 @@ export class Parser {
    *  ;
    */
   private ExpressionStatement(): Statement {
+    const position = this.tokenizer.currentPosition();
     const expr = this.Expression();
 
     return {
+      position,
       type: "ExpressionStatement",
       expression: expr,
     };
@@ -220,6 +231,7 @@ export class Parser {
    *  ;
    */
   private VariableDeclaration() {
+    const position = this.tokenizer.currentPosition();
     this.eat("let");
     let id = this.Identifier();
     this.eat("=");
@@ -227,6 +239,7 @@ export class Parser {
     this.lookahead?.type === ";" ? this.eat(";") : null;
 
     return {
+      position,
       type: "VariableDeclaration",
       name: id.name,
       expr,
@@ -255,6 +268,7 @@ export class Parser {
    */
 
   private AssignmentExpression(): Expression {
+    const position = this.tokenizer.currentPosition();
     const left = this.LogicalORExpression(); // always start with the lowest precedence
 
     if (this.lookahead?.type !== "=") {
@@ -262,6 +276,7 @@ export class Parser {
     }
 
     return {
+      position,
       type: "AssignmentExpression",
       operator: "=",
       left: this._checkValidAssignmentTarget(left),
@@ -329,6 +344,7 @@ export class Parser {
     builderName: "EqualityExpression" | "LogicalANDExpression",
     operatorToken: "LOGICAL_AND" | "LOGICAL_OR"
   ): Expression {
+    const position = this.tokenizer.currentPosition();
     let left = this[builderName]();
 
     while (this.lookahead?.type === operatorToken) {
@@ -336,6 +352,7 @@ export class Parser {
       const right = this[builderName]();
 
       left = {
+        position,
         type: "LogicalExpression",
         operator,
         left,
@@ -381,6 +398,7 @@ export class Parser {
       | "UnaryExpression",
     operatorToken: Token["type"]
   ): Expression {
+    const position = this.tokenizer.currentPosition();
     let left = this[builderName]();
 
     while (this.lookahead?.type === operatorToken) {
@@ -388,6 +406,7 @@ export class Parser {
       const right = this[builderName]();
 
       left = {
+        position,
         type: "BinaryExpression",
         operator,
         left,
@@ -406,6 +425,7 @@ export class Parser {
    *  ;
    */
   private UnaryExpression(): Expression {
+    const position = this.tokenizer.currentPosition();
     let operator: "!" | "-" | null = null;
     switch (this.lookahead?.type) {
       case "ADDITIVE_OPERATOR":
@@ -417,6 +437,7 @@ export class Parser {
     }
     if (operator !== null) {
       return {
+        position,
         type: "UnaryExpression",
         operator,
         argument: this.UnaryExpression(),
@@ -507,6 +528,7 @@ export class Parser {
    *  ;
    */
   private MemberExpression(): Expression {
+    const position = this.tokenizer.currentPosition();
     let object = this.PrimaryExpression();
 
     while (
@@ -518,6 +540,7 @@ export class Parser {
         this.eat(".");
         const property = this.Identifier();
         object = {
+          position,
           type: "MemberExpression",
           computed: false,
           object,
@@ -530,6 +553,7 @@ export class Parser {
         const property = this.Expression();
         this.eat("]");
         object = {
+          position,
           type: "MemberExpression",
           computed: true,
           object,
@@ -550,6 +574,11 @@ export class Parser {
       (t) => t.type
     );
 
+    // this is to handle the JS syntax:
+    // a => 42
+    // () => 42
+    // (a) => 42
+    // (a, b) => 42
     return match(nextTokens)
       .with(["IDENTIFIER", "=>", P._, P._], () => true)
       .with(["(", ")", "=>", P._], () => true)
@@ -594,6 +623,7 @@ export class Parser {
    *  : 'if' Expression 'then' Expression 'else' Expression
    */
   private ConditionalExpression(): Expression {
+    const position = this.tokenizer.currentPosition();
     this.eat("if");
     const test = this.Expression();
     this.eat("then");
@@ -602,6 +632,7 @@ export class Parser {
     const alternative = this.Expression();
 
     return {
+      position,
       type: "ConditionalExpression",
       test,
       consequence,
@@ -626,12 +657,14 @@ export class Parser {
    *  ;
    */
   private BlockExpression(): Expression {
+    const position = this.tokenizer.currentPosition();
     this.eat(":");
     this.eat("{");
     const statements = this.StatementList("}");
     this.eat("}");
 
     return {
+      position,
       type: "BlockExpression",
       body: statements,
     };
@@ -669,6 +702,7 @@ export class Parser {
   }
 
   private Lambda(): Expression {
+    const position = this.tokenizer.currentPosition();
     const params =
       this.lookahead?.type !== "("
         ? // case: a => 42
@@ -683,6 +717,7 @@ export class Parser {
     const body = this.Expression();
 
     return {
+      position,
       type: "Lambda",
       params,
       body,
@@ -690,35 +725,43 @@ export class Parser {
   }
 
   private StringLiteral(): Expression {
+    const position = this.tokenizer.currentPosition();
     const token = this.eat("STRING");
 
     return {
+      position,
       type: "StringLiteral",
       value: token.value.slice(1, -1),
     };
   }
 
   private NumericLiteral(): Expression {
+    const position = this.tokenizer.currentPosition();
     const token = this.eat("NUMBER");
 
     return {
+      position,
       type: "NumericLiteral",
       value: Number(token.value),
     };
   }
 
   private NumberKeyword(): Expression {
+    const position = this.tokenizer.currentPosition();
     const token = this.eat("number");
 
     return {
+      position,
       type: "NumberKeyword",
     };
   }
 
   private StringKeyword(): Expression {
+    const position = this.tokenizer.currentPosition();
     const token = this.eat("string");
 
     return {
+      position,
       type: "StringKeyword",
     };
   }
@@ -728,12 +771,14 @@ export class Parser {
    *  : '[' OptTupleElements ']'
    */
   private TupleLiteral(): Expression {
+    const position = this.tokenizer.currentPosition();
     this.eat("[");
     const elements = this.lookahead?.type === "]" ? [] : this.TupleElements();
 
     this.eat("]");
 
     return {
+      position,
       type: "Tuple",
       elements,
     };
@@ -757,8 +802,10 @@ export class Parser {
 
   // Identifier: IDENTIFIER;
   private Identifier() {
+    const position = this.tokenizer.currentPosition();
     const name = this.eat("IDENTIFIER").value;
     return {
+      position,
       type: "Identifier",
       name,
     } as const;

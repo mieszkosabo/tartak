@@ -1,12 +1,12 @@
-import type { Token } from "./tokenizer";
+import type { Token, Position } from "./tokenizer";
 
-export type Param = {
+export type Param = { position: Position } & {
   type: "Param";
   name: string;
   paramType: Expression | null;
 };
 
-export type Definition = {
+export type Definition = { position: Position } & {
   type: "Definition";
   name: string;
   params: Param[];
@@ -19,13 +19,13 @@ export type Section = {
   body: Statement[];
 };
 
-export type TartakAST =
+export type TartakAST = { position: Position } & (
   | { type: "Program"; body: Definition[] }
-  | Definition
   | Expression
   | Param
   | Section
-  | Statement;
+  | Statement
+);
 
 export type Literal =
   | { type: "NumericLiteral"; value: number }
@@ -35,7 +35,7 @@ export type Literal =
   | { type: "Lambda"; params: Param[]; body: Expression }
   | { type: "StringKeyword" };
 
-export type Statement =
+export type Statement = { position: Position } & (
   | {
       type: "VariableDeclaration";
       name: string;
@@ -49,9 +49,11 @@ export type Statement =
       type: "AssertEqual";
       left: Expression;
       right: Expression;
-    };
+    }
+  | Definition
+);
 
-export type Expression =
+export type Expression = { position: Position } & (
   | { type: "BlockExpression"; body: Statement[] }
   | { type: "Identifier"; name: string }
   | {
@@ -94,4 +96,5 @@ export type Expression =
       operator: "-" | "!";
       argument: Expression;
     }
-  | Literal;
+  | Literal
+);
