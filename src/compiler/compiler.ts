@@ -235,11 +235,7 @@ namespace ${section.name} {
           }));
 
           const cont = (args: { name: string; expr: string }[]): string => {
-            let evaledCallee = this._compile(expr.callee, env);
-            // FIXME: this whole thing is a mess, typechecker will solve this (maybe)
-            if (env.innerScope.includes(evaledCallee)) {
-              evaledCallee += ` extends Fn ? ${evaledCallee} : never`;
-            }
+            const evaledCallee = this._compile(expr.callee, env);
             if (args.length === 0 && expr.arguments.length !== 0) {
               const args = evaledArgs.map((arg) => arg.name).join(",");
               // FIXME: this is a temporary hack to make it work: we call a fun with Apply, and if it
@@ -254,8 +250,7 @@ namespace ${section.name} {
 
             const [a, ...rest] = args;
 
-            // FIXME: fix `extends number` hard coded
-            return `(${a.expr}) extends infer ${a.name} extends number
+            return `(${a.expr}) extends infer ${a.name} extends (${a.expr})
             ? (${cont(rest)})
             : never`;
           };
@@ -345,8 +340,7 @@ namespace ${section.name} {
               return lastElem;
             } else {
               const [d, ...rest] = decls;
-              // TODO: add `extends ...` based on  the type from type checker
-              return `(${d.expr}) extends infer ${d.name}
+              return `(${d.expr}) extends infer ${d.name} extends (${d.expr})
                 ? (${cont(rest, lastElem)})
                 : never`;
             }

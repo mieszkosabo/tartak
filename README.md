@@ -6,8 +6,8 @@
 - [ ] partial application
 - [ ] string functions
 - [ ] array functions
-- [ ] match
 - [ ] "enums" (data types)
+- [ ] match
 - [x] map with captures
 - [ ] fix all todos and fixmes
 - [x] first-class testing framework? (kinda)
