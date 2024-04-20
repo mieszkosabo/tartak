@@ -19,8 +19,11 @@ type yo = (a) => :{
   (b) => a + b + c + d // last expression is returned
 }
 
+type lambdaWithType = (a: number) => [a];
+
 
 #[test] :{
   AssertEqual(hello, 11);
   AssertEqual(yo(1)(6), 50);
+  AssertEqual(lambdaWithType(1), [1]);
 }

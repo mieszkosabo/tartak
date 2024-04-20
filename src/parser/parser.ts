@@ -578,11 +578,13 @@ export class Parser {
     // a => 42
     // () => 42
     // (a) => 42
+    // (a: number) => 42
     // (a, b) => 42
     return match(nextTokens)
       .with(["IDENTIFIER", "=>", P._, P._], () => true)
       .with(["(", ")", "=>", P._], () => true)
       .with(["(", "IDENTIFIER", ")", "=>"], () => true)
+      .with(["(", "IDENTIFIER", ":", P._], () => true)
       .with(["(", "IDENTIFIER", ",", P._], () => true)
       .otherwise(() => false);
   }

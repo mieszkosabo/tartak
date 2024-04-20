@@ -132,7 +132,7 @@ namespace ${section.name} {
           if (maybeOuterScopeIdx !== -1) {
             return `this["arg0"][${maybeOuterScopeIdx}] /** ${ident.name} */`;
           } else if (maybeParamsIdx !== -1) {
-            return `this["arg1"][${maybeParamsIdx}] /** ${ident.name} */`;
+            return `this["arg${maybeParamsIdx + 1}"] /** ${ident.name} */`;
           }
 
           // default: inner scope variable or global identifier
@@ -241,9 +241,9 @@ namespace ${section.name} {
               // FIXME: this is a temporary hack to make it work: we call a fun with Apply, and if it
               // extends never, then we call it with PartialApply lol
 
-              return `(Apply<${evaledCallee}, [[${args}]]>) extends never
-                ? (PartialApply<${evaledCallee}, [[${args}]]>)
-                : (Apply<${evaledCallee}, [[${args}]]>)`;
+              return `(Apply<${evaledCallee}, [${args}]>) extends never
+                ? (PartialApply<${evaledCallee}, [${args}]>)
+                : (Apply<${evaledCallee}, [${args}]>)`;
             } else if (args.length === 0) {
               return evaledCallee;
             }
@@ -289,7 +289,7 @@ namespace ${section.name} {
             (_, idx) => `this["arg0"][${idx}]`
           );
           const passingParams = env.params.map(
-            (_, idx) => `this["arg1"][${idx}]`
+            (_, idx) => `this["arg${idx + 1}"]`
           );
           return `[${passingInnerScope
             .concat(passingScope)

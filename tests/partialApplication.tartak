@@ -1,0 +1,17 @@
+type add(a: number, b: number, c: number) = :{
+   a + b + c
+}
+
+
+type add1(a: number, b: number) = :{
+  add(1, a, b)
+}
+
+type add20 = (x: number) => add(10, 10, x);
+
+
+#[test] :{
+  AssertEqual(add(1, 2, 3), 6);
+  AssertEqual(add1(1, 2), 4);
+  AssertEqual(add20(10), 30);
+}

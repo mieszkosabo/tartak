@@ -23,7 +23,7 @@ interface MapFn extends Fn {
     infer tuple extends unknown[]
   ]
     ? {
-        [key in keyof tuple]: Apply<fn, [[tuple[key]]]>;
+        [key in keyof tuple]: Apply<fn, [tuple[key]]>;
       }
     : never;
 }
