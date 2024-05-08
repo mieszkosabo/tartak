@@ -63,7 +63,9 @@ const spec = [
   // ---
   // Math
   [/^[+\-]/, "ADDITIVE_OPERATOR"],
+  [/^\*\*/, "MULTIPLICATIVE_OPERATOR"],
   [/^[*\/\|\&]/, "MULTIPLICATIVE_OPERATOR"],
+  [/^%/, "MULTIPLICATIVE_OPERATOR"],
 
   [/^[><]=?/, "RELATIONAL_OPERATOR"],
 

@@ -1,0 +1,20 @@
+
+#[test] :{
+  AssertEqual([3, 1, 2].sort(), [1, 2, 3]);
+
+  AssertEqual([1, 2, 3].sum(), 6);
+
+  AssertEqual([1, 2, 3].head(), 1);
+
+  AssertEqual([1, 2, 3].tail(), [2, 3]);
+
+  AssertEqual([1, 2, 3].last(), 3);
+
+  AssertEqual([1, 2, 3].at(1), 2);
+
+  AssertEqual([1, 2, 3].drop(2), [3]);
+
+  AssertEqual([1, 2, 3].take(2), [1, 2]);
+
+  AssertEqual([1, 2, 3].map((x) => x + 10), [11, 12, 13]);
+}

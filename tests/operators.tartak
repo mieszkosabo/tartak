@@ -1,0 +1,54 @@
+
+
+#[test] :{
+  // arithmetic operators
+  AssertEqual(5 - 3, 2);
+
+  AssertEqual(5 + 3, 8);
+
+  AssertEqual(5 + 3, 8);
+
+  AssertEqual(8 / 2, 4);
+
+  AssertEqual(-42 - 1, -43);
+
+  AssertEqual(2 ** 3, 8);
+
+  AssertEqual(9 % 2, 1);
+
+  // relational and logical operators
+  AssertEqual(14 == 14, true);
+  AssertEqual(1 == 14, false);
+
+  AssertEqual(2 != 4, true);
+  AssertEqual(4 != 4, false);
+
+  AssertEqual(14 > 12, true);
+  AssertEqual(14 > 14, false);
+  AssertEqual(14 > 15, false);
+
+  AssertEqual(14 >= 12, true);
+  AssertEqual(14 >= 14, true);
+  AssertEqual(14 >= 15, false);
+
+  AssertEqual(14 < 12, false);
+  AssertEqual(14 < 14, false);
+  AssertEqual(14 < 15, true);
+
+  AssertEqual(14 <= 12, false);
+  AssertEqual(14 <= 14, true);
+  AssertEqual(14 <= 15, true);
+
+  AssertEqual(true && true, true);
+  AssertEqual(true && false, false);
+  AssertEqual(false && true, false);
+  AssertEqual(false && false, false);
+
+  AssertEqual(true || true, true);
+  AssertEqual(true || false, true);
+  AssertEqual(false || true, true);
+  AssertEqual(false || false, false);
+
+  AssertEqual(!true, false);
+  AssertEqual(!false, true);
+}

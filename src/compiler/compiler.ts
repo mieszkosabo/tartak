@@ -160,10 +160,26 @@ namespace ${section.name} {
                 rightType: "number",
               };
             })
-            .with("-", () => {
-              this.imports.math.add("Subtract");
+            .with("/", () => {
+              this.imports.math.add("Divide");
               return {
-                fName: "Subtract",
+                fName: "Divide",
+                leftType: "number",
+                rightType: "number",
+              };
+            })
+            .with("*", () => {
+              this.imports.math.add("Multiply");
+              return {
+                fName: "Multiply",
+                leftType: "number",
+                rightType: "number",
+              };
+            })
+            .with("**", () => {
+              this.imports.math.add("Pow");
+              return {
+                fName: "Pow",
                 leftType: "number",
                 rightType: "number",
               };
@@ -176,10 +192,50 @@ namespace ${section.name} {
                 rightType: "number",
               };
             })
+            .with("<=", () => {
+              this.imports.math.add("LtOrEq");
+              return {
+                fName: "LtOrEq",
+                leftType: "number",
+                rightType: "number",
+              };
+            })
+            .with(">", () => {
+              this.imports.math.add("Gt");
+              return {
+                fName: "Gt",
+                leftType: "number",
+                rightType: "number",
+              };
+            })
+            .with(">=", () => {
+              this.imports.math.add("GtOrEq");
+              return {
+                fName: "GtOrEq",
+                leftType: "number",
+                rightType: "number",
+              };
+            })
+            .with("%", () => {
+              this.imports.math.add("Mod");
+              return {
+                fName: "Mod",
+                leftType: "number",
+                rightType: "number",
+              };
+            })
             .with("==", () => {
               this.imports.hot.add("Booleans");
               return {
                 fName: "Booleans.Equals",
+                leftType: null,
+                rightType: null,
+              };
+            })
+            .with("!=", () => {
+              this.imports.prelude.add("NotEquals");
+              return {
+                fName: "NotEquals",
                 leftType: null,
                 rightType: null,
               };
@@ -217,15 +273,97 @@ namespace ${section.name} {
             : never)`;
         })
 
-        .with({ type: "CallExpression" }, (expr) => {
-          // TODO: this doesn't work yet, because I don't know how to check if a function is a partial apply.
-          // needs more bookkeeping
-          const isPartialApply = false;
+        .with({ type: "LogicalExpression" }, (expr) => {
+          const fn: {
+            fName: string;
+            leftType: string | null;
+            rightType: string | null;
+          } = match(expr.operator)
+            .with("||", () => {
+              this.imports.hot.add("Booleans");
+              return {
+                fName: "Booleans.Or",
+                leftType: null,
+                rightType: null,
+              };
+            })
+            .with("&&", () => {
+              this.imports.hot.add("Booleans");
+              return {
+                fName: "Booleans.And",
+                leftType: null,
+                rightType: null,
+              };
+            })
+            .run();
 
+          const left = this._compile(expr.left, env);
+          const right = this._compile(expr.right, env);
+
+          const leftId = this.freshId();
+          const rightId = this.freshId();
+
+          const call = `Call<${fn.fName}<${leftId}, ${rightId}>>`;
+
+          return `(${left} extends infer ${leftId} ${
+            fn.leftType ? `extends ${fn.leftType}` : ""
+          }
+            ? ${right} extends infer ${rightId} ${
+            fn.leftType ? `extends ${fn.leftType}` : ""
+          }
+              ? (${call})
+              : never
+            : never)`;
+        })
+
+        .with({ type: "UnaryExpression" }, (expr) => {
+          const fn: {
+            fName: string;
+            leftType: string | null;
+            rightType: string | null;
+          } = match(expr.operator)
+            .with("!", () => {
+              this.imports.hot.add("Booleans");
+              return {
+                fName: "Booleans.Not",
+                leftType: null,
+                rightType: null,
+              };
+            })
+            .with("-", () => {
+              this.imports.math.add("Negate");
+              return {
+                fName: "Negate",
+                leftType: "number",
+                rightType: "number",
+              };
+            })
+            .run();
+
+          const arg = this._compile(expr.argument, env);
+
+          const argId = this.freshId();
+
+          const call =
+            expr.operator === "!"
+              ? `Call<${fn.fName}<${argId}>>`
+              : `${fn.fName}<${argId}>`;
+
+          return `(${arg} extends infer ${argId} ${
+            fn.leftType ? `extends ${fn.leftType}` : ""
+          }
+            ? (${call})
+            : never)`;
+        })
+
+        .with({ type: "CallExpression" }, (expr) => {
           this.imports.hot.add("PartialApply");
           this.imports.hot.add("Apply");
 
-          if (expr.callee.type === "MemberExpression") {
+          if (
+            expr.callee.type === "MemberExpression" &&
+            expr.callee.computed === false // .map, .sort, etc. Not [0], [1], ["abc"] etc.
+          ) {
             return this.compileMethodCall(expr, env);
           }
 
@@ -398,36 +536,36 @@ namespace ${section.name} {
 
     const fun = match(callee.property)
       .with({ type: "Identifier", name: "sort" }, () => {
-        this.imports.hot.add("Tuples");
-        return "Tuples.Sort";
+        this.imports.prelude.add("Sort");
+        return "Sort";
       })
       .with({ type: "Identifier", name: "sum" }, () => {
-        this.imports.hot.add("Tuples");
-        return "Tuples.Sum";
+        this.imports.prelude.add("Sum");
+        return "Sum";
       })
       .with({ type: "Identifier", name: "head" }, () => {
-        this.imports.hot.add("Tuples");
-        return "Tuples.Head";
+        this.imports.prelude.add("Head");
+        return "Head";
       })
       .with({ type: "Identifier", name: "tail" }, () => {
-        this.imports.hot.add("Tuples");
-        return "Tuples.Tail";
+        this.imports.prelude.add("Tail");
+        return "Tail";
       })
       .with({ type: "Identifier", name: "last" }, () => {
-        this.imports.hot.add("Tuples");
-        return "Tuples.Last";
+        this.imports.prelude.add("Last");
+        return "Last";
       })
       .with({ type: "Identifier", name: "at" }, () => {
-        this.imports.hot.add("Tuples");
-        return `Tuples.At`;
+        this.imports.prelude.add("At");
+        return `At`;
       })
       .with({ type: "Identifier", name: "drop" }, () => {
-        this.imports.hot.add("Tuples");
-        return `Tuples.Drop`;
+        this.imports.prelude.add("Drop");
+        return `Drop`;
       })
       .with({ type: "Identifier", name: "take" }, () => {
-        this.imports.hot.add("Tuples");
-        return `Tuples.Take`;
+        this.imports.prelude.add("Take");
+        return `Take`;
       })
 
       .with({ type: "Identifier", name: "map" }, () => {
@@ -438,9 +576,9 @@ namespace ${section.name} {
         throw new Error("unimplemented method " + callee.property);
       });
 
-    return `(${fun}<${expr.arguments
-      .map((arg) => this._compile(arg, env))
-      .join(",")}, ${this._compile(callee.object, env)}>)`;
+    return `(${fun}<${this._compile(callee.object, env)}${
+      expr.arguments.length > 0 ? ", " : ""
+    }${expr.arguments.map((arg) => this._compile(arg, env)).join(",")}>)`;
   }
 
   private freshId() {

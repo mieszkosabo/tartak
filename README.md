@@ -1,17 +1,65 @@
 # tartak
 
-## TODOs
+## ROADMAP
 
-- [ ] finish type-checker and integrate it with compiler
+- [x] closures
 - [x] partial application
-- [ ] string functions
-- [ ] array functions
+- [x] arithmetic operators
+  - [x] - (subtraction)
+  - [x] - (negation)
+  - [x] `+`
+  - [x] /
+  - [x] `**` (power)
+  - [x] % (mod)
+- [x] relational and logical operators
+  - [x] ==
+  - [x] !=
+  - [x] <
+  - [x] <=
+  - [x] >
+  - [x] `>=`
+  - [x] && (logical and)
+  - [x] || (logical or)
+  - [x] ! (logical not)
+- [ ] string methods
+- [ ] tuple methods
+  - [ ] .partition
+  - [ ] .isEmpty
+  - [ ] .zip
+  - [ ] .zipWIth
+  - [x] .sort
+  - [x] .head
+  - [x] .tail
+  - [x] .at
+  - [x] .last
+  - [ ] .flatMap
+  - [ ] .find
+  - [x] .drop
+  - [x] .take
+  - [ ] .takeWhile
+  - [ ] .groupBy
+  - [ ] .join
+  - [x] .map
+  - [ ] .filter
+  - [ ] .reduce
+  - [ ] .reduceRight
+  - [ ] .reverse
+  - [ ] .every
+  - [ ] .splitAt
+  - [ ] .toUnion
+  - [ ] .toIntersection
+  - [ ] .prepend
+  - [ ] .append
+  - [ ] .concat
+  - [ ] .min
+  - [ ] .max
+  - [x] .sum
 - [ ] "enums" (data types)
 - [ ] match
-- [x] map with captures
-- [ ] fix all todos and fixmes
 - [x] first-class testing framework? (kinda)
 - [x] syntax highlighting (barely works)
+- [ ] fix all todos and fixmes
+- [ ] finish type-checker and integrate it with compiler
 
 ## Syntax highlighting
 
