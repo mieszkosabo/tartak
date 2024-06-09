@@ -1,0 +1,13 @@
+
+type matchFn = (x) => match x {
+  1 -> "one",
+  infer x extends number -> x + 1,
+  any -> "something else"
+};
+
+
+#[test] :{
+  AssertEqual(matchFn(42), 43);
+  AssertEqual(matchFn(1), "one");
+  AssertEqual(matchFn("hello"), "something else");
+}

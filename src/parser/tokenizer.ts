@@ -26,11 +26,15 @@ const spec = [
   [/^\,/, ","],
   [/^\./, "."],
   [/^\=>/, "=>"],
+  [/^\->/, "->"],
   [/^\\/, "\\"],
 
   // ---
   // Keywords:
   [/^\blet\b/, "let"],
+  [/^\bmatch\b/, "match"],
+  [/^\binfer\b/, "infer"],
+  [/^\bextends\b/, "extends"],
   [/^\bnumber\b/, "number"],
   [/^\bstring\b/, "string"],
   [/^\btype\b/, "type"],

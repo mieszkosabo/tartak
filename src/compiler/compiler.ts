@@ -20,8 +20,15 @@ export class Compiler {
     math: new Set(),
     prelude: new Set(),
   };
+  // global id counter for variables
   private nextId = 1;
-  private lambdas: Record<string, { argCount: number; code: string }> = {};
+
+  // name to body mapping for all lambdas/functions
+  private lambdas: Record<string, { code: string }> = {};
+
+  // global to keep track of the inferred variables in MatchArms.
+  // should be reset after each arm.
+  private inferredVariables: { name: string; extends: string | null }[] = [];
 
   compile(tartakCode: string) {
     const ast = this.parser.parse(tartakCode);
@@ -126,6 +133,13 @@ namespace ${section.name} {
 
         //Expressions
         .with({ type: "Identifier" }, (ident) => {
+          const maybeInferredVarIdx = this.inferredVariables.findIndex(
+            (variable) => variable.name === ident.name
+          );
+          if (maybeInferredVarIdx !== -1) {
+            return `this["arg${maybeInferredVarIdx}"]`;
+          }
+
           const maybeOuterScopeIdx = env.outerScope.indexOf(ident.name);
           const maybeParamsIdx = env.params.indexOf(ident.name);
 
@@ -419,7 +433,6 @@ namespace ${section.name} {
             code: `interface ${fnName} extends Fn {
             return: ${compiledBody}
           }`,
-            argCount: lambda.params.length,
           };
 
           const passingInnerScope = env.innerScope;
@@ -491,6 +504,44 @@ namespace ${section.name} {
           return this._compile(expr.expression, env);
         })
 
+        .with({ type: "MatchExpression" }, (expr) => {
+          this.imports.hot.add("Match");
+          this.imports.hot.add("Call");
+
+          const { scrutinee, arms } = expr;
+
+          const evaledScrutinee = this._compile(scrutinee, env);
+          const evaledArms = arms
+            .map((arm) => this._compile(arm, env))
+            .join(", ");
+
+          return `Call<
+  Match<[
+  ${evaledArms}
+  ]>,
+  ${evaledScrutinee} 
+          >`;
+        })
+
+        .with({ type: "MatchArm" }, (arm) => {
+          const { expression, pattern } = arm;
+
+          const evaledPattern = this._compile(pattern, env);
+          const evaledExpression = this._compile(expression, env);
+
+          const lambdaName = `arm_${this.freshId()}`;
+          this.lambdas[lambdaName] = {
+            code: `interface ${lambdaName} extends Fn {
+            return: ${evaledExpression}
+          }`,
+          };
+
+          // reset inferredVariables
+          this.inferredVariables = [];
+
+          return `Match.With<${evaledPattern}, ${lambdaName}>`;
+        })
+
         .with({ type: "ConditionalExpression" }, (expr) => {
           const { test, consequence, alternative } = expr;
 
@@ -500,6 +551,29 @@ namespace ${section.name} {
         })
 
         // Literals
+        .with({ type: "InferredVariable" }, (variable) => {
+          this.imports.hot.add("arg");
+
+          const idx = this.inferredVariables.length;
+          if (idx > 3) {
+            throw new Error(
+              `Too many inferred variables, at: ${variable.position}`
+            );
+          }
+          const evaledExtends = variable.extends
+            ? this._compile(variable.extends, env)
+            : null;
+
+          this.inferredVariables.push({
+            name: variable.name,
+            extends: evaledExtends,
+          });
+
+          return evaledExtends === null
+            ? `arg<${idx}>`
+            : `arg<${idx}, ${evaledExtends}>`;
+        })
+
         .with({ type: "NumericLiteral" }, (lit) => {
           return String(lit.value);
         })

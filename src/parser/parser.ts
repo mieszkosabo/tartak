@@ -1,6 +1,12 @@
 import { P, match } from "ts-pattern";
 import { Tokenizer, type Token } from "./tokenizer";
-import type { Definition, Expression, Param, Statement } from "./types";
+import type {
+  Definition,
+  Expression,
+  MatchArm,
+  Param,
+  Statement,
+} from "./types";
 
 export class Parser {
   private code = "";
@@ -615,9 +621,65 @@ export class Parser {
         return this.Identifier();
       case "if":
         return this.ConditionalExpression();
+      case "match":
+        return this.MatchExpression();
       default:
         return this.LeftHandSideExpression();
     }
+  }
+
+  /**
+   * MatchExpression
+   *  : 'match' Expression '{' MatchArmList '}'
+   */
+  private MatchExpression(): Expression {
+    const position = this.tokenizer.currentPosition();
+    this.eat("match");
+    const expr = this.Expression();
+    this.eat("{");
+    const arms = this.MatchArmList();
+    this.eat("}");
+
+    return {
+      position,
+      type: "MatchExpression",
+      scrutinee: expr,
+      arms,
+    };
+  }
+
+  /**
+   * MatchArmList
+   *  : MatchArm
+   *  | MatchArmList MatchArm
+   */
+  private MatchArmList(): MatchArm[] {
+    const arms = [this.MatchArm()];
+
+    while (this.lookahead?.type === ",") {
+      this.eat(",");
+      arms.push(this.MatchArm());
+    }
+
+    return arms;
+  }
+
+  /**
+   * MatchArm
+   *  : Expression '->' Expression
+   */
+  private MatchArm(): MatchArm {
+    const position = this.tokenizer.currentPosition();
+    const pattern = this.Expression();
+    this.eat("->");
+    const expression = this.Expression();
+
+    return {
+      position,
+      type: "MatchArm",
+      pattern,
+      expression,
+    };
   }
 
   /**
@@ -649,6 +711,7 @@ export class Parser {
       tokenType === "number" ||
       tokenType === "string" ||
       tokenType === "[" ||
+      tokenType === "infer" ||
       tokenType === "\\"
     );
   }
@@ -685,7 +748,6 @@ export class Parser {
     return expr;
   }
 
-  // Literal: "string" | "number";
   private Literal(): Expression {
     switch (this.lookahead?.type) {
       case "number":
@@ -698,9 +760,30 @@ export class Parser {
         return this.StringLiteral();
       case "[":
         return this.TupleLiteral();
+      case "infer":
+        return this.InferredVariable();
     }
 
     throw new SyntaxError(`Unexpected literal production`);
+  }
+
+  private InferredVariable(): Expression {
+    const position = this.tokenizer.currentPosition();
+    this.eat("infer");
+    const name = this.Identifier().name;
+
+    let extendsType = null;
+    if (this.lookahead?.type === "extends") {
+      this.eat("extends");
+      extendsType = this.Expression();
+    }
+
+    return {
+      position,
+      type: "InferredVariable",
+      name,
+      extends: extendsType,
+    };
   }
 
   private Lambda(): Expression {
