@@ -22,6 +22,9 @@
   - [x] || (logical or)
   - [x] ! (logical not)
 - [ ] string methods
+- [ ] number methods
+- [ ] object methods
+- [ ] union methods
 - [ ] tuple methods
   - [ ] .partition
   - [ ] .isEmpty
@@ -54,8 +57,12 @@
   - [ ] .min
   - [ ] .max
   - [x] .sum
-- [ ] "enums" (data types)
-- [ ] match
+- [ ] objects
+- [ ] records
+- [ ] unions
+- [ ] intersections
+- [ ] string literals
+- [x] match
 - [x] first-class testing framework? (kinda)
 - [x] syntax highlighting (barely works)
 - [ ] fix all todos and fixmes
