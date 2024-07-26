@@ -30,6 +30,10 @@ export class Compiler {
   // should be reset after each arm.
   private inferredVariables: { name: string; extends: string | null }[] = [];
 
+  private context = {
+    evaluatingPattern: false,
+  };
+
   compile(tartakCode: string) {
     const ast = this.parser.parse(tartakCode);
     return this._compile(ast as TartakAST, {
@@ -137,7 +141,7 @@ namespace ${section.name} {
             (variable) => variable.name === ident.name
           );
           if (maybeInferredVarIdx !== -1) {
-            return `this["arg${maybeInferredVarIdx}"]`;
+            return ident.name;
           }
 
           const maybeOuterScopeIdx = env.outerScope.indexOf(ident.name);
@@ -524,15 +528,20 @@ namespace ${section.name} {
         })
 
         .with({ type: "MatchArm" }, (arm) => {
-          const { expression, pattern } = arm;
+          const { pattern, expression } = arm;
 
+          this.context.evaluatingPattern = true;
           const evaledPattern = this._compile(pattern, env);
+
+          this.context.evaluatingPattern = false;
+          const evaledPatternWithVariables = this._compile(pattern, env);
+
           const evaledExpression = this._compile(expression, env);
 
           const lambdaName = `arm_${this.freshId()}`;
           this.lambdas[lambdaName] = {
             code: `interface ${lambdaName} extends Fn {
-            return: ${evaledExpression}
+            return: this["arg0"] extends ${evaledPatternWithVariables} ? ${evaledExpression} : never
           }`,
           };
 
@@ -548,6 +557,22 @@ namespace ${section.name} {
           return `(${this._compile(test, env)}) extends true
           ? ${this._compile(consequence, env)}
           : ${this._compile(alternative, env)}`;
+        })
+
+        .with({ type: "TemplateString" }, (expr) => {
+          return (
+            "`" +
+            expr.parts
+              .map((part) => {
+                if (part.variant === "string") {
+                  return part.value;
+                } else {
+                  return `\${${this._compile(part.value, env)}}`;
+                }
+              })
+              .join("") +
+            "`"
+          );
         })
 
         // Literals
@@ -570,8 +595,12 @@ namespace ${section.name} {
           });
 
           return evaledExtends === null
-            ? `arg<${idx}>`
-            : `arg<${idx}, ${evaledExtends}>`;
+            ? this.context.evaluatingPattern
+              ? `any`
+              : `infer ${variable.name}`
+            : this.context.evaluatingPattern
+            ? `${evaledExtends}`
+            : `infer ${variable.name} extends ${evaledExtends}`;
         })
 
         .with({ type: "NumericLiteral" }, (lit) => {

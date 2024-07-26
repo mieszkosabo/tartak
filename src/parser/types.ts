@@ -111,4 +111,12 @@ export type Expression = { position: Position } & (
       scrutinee: Expression;
       arms: MatchArm[];
     }
+  | {
+      type: "TemplateString";
+      parts: TemplateStringPart[];
+    }
 );
+
+export type TemplateStringPart =
+  | { variant: "string"; value: string }
+  | { variant: "expression"; value: Expression };

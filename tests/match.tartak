@@ -2,12 +2,16 @@
 type matchFn = (x) => match x {
   1 -> "one",
   infer x extends number -> x + 1,
-  any -> "something else"
+  `matching inside a ${infer what extends string}!` -> what,
+  infer s extends string -> `Some string: ${s}`,
+  infer x -> x
 };
 
 
 #[test] :{
   AssertEqual(matchFn(42), 43);
   AssertEqual(matchFn(1), "one");
-  AssertEqual(matchFn("hello"), "something else");
+  AssertEqual(matchFn("matching inside a template literal!"), "template literal");
+  AssertEqual(matchFn("howdy"), "Some string: howdy");
+  AssertEqual(matchFn(true), true);
 }

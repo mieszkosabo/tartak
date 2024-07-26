@@ -61,7 +61,7 @@
 - [ ] records
 - [ ] unions
 - [ ] intersections
-- [ ] string literals
+- [x] string literals
 - [x] match
 - [x] first-class testing framework? (kinda)
 - [x] syntax highlighting (barely works)

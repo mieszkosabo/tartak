@@ -6,6 +6,7 @@ import type {
   MatchArm,
   Param,
   Statement,
+  TemplateStringPart,
 } from "./types";
 
 export class Parser {
@@ -605,6 +606,10 @@ export class Parser {
    *  ;
    */
   private PrimaryExpression(): Expression {
+    if (this.lookahead?.type === "`") {
+      return this.TemplateString();
+    }
+
     if (this.isLambda()) {
       return this.Lambda();
     }
@@ -626,6 +631,50 @@ export class Parser {
       default:
         return this.LeftHandSideExpression();
     }
+  }
+
+  private TemplateString(): Expression {
+    // this implementation is a little cheeky, not gonna lie.
+    const position = this.tokenizer.currentPosition();
+
+    let c = this.tokenizer.nextChar();
+    let currentText = "";
+    let parts: TemplateStringPart[] = [];
+
+    while (c !== "`") {
+      if (c === "$") {
+        c = this.tokenizer.nextChar();
+        if (c === "{") {
+          parts.push({ variant: "string", value: currentText });
+          currentText = "";
+
+          // advance to next token
+          this.lookahead = this.tokenizer.nextToken();
+
+          let expr = this.Expression();
+          parts.push({ variant: "expression", value: expr });
+        } else if (c === "`") {
+          currentText += "$";
+          break;
+        } else {
+          currentText += "$" + c;
+        }
+      } else {
+        currentText += c;
+      }
+
+      c = this.tokenizer.nextChar();
+    }
+
+    parts.push({ variant: "string", value: currentText });
+
+    this.lookahead = this.tokenizer.nextToken();
+
+    return {
+      position,
+      type: "TemplateString",
+      parts,
+    };
   }
 
   /**

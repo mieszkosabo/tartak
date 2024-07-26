@@ -28,6 +28,7 @@ const spec = [
   [/^\=>/, "=>"],
   [/^\->/, "->"],
   [/^\\/, "\\"],
+  [/^`/, "`"],
 
   // ---
   // Keywords:
@@ -118,6 +119,18 @@ export class Tokenizer {
     };
   }
 
+  nextChar(): string {
+    const char = this.text[this.cursor];
+    this.cursor++;
+    if (char === "\n") {
+      this.position.line++;
+      this.position.column = 1;
+    } else {
+      this.position.column++;
+    }
+    return char;
+  }
+
   nextToken(): Token | null {
     if (!this.hasMoreTokens()) {
       return null;
@@ -155,11 +168,15 @@ export class Tokenizer {
     };
 
     for (let i = 0; i < n; i++) {
-      const token = this.nextToken();
-      if (token === null) {
+      try {
+        const token = this.nextToken();
+        if (token === null) {
+          break;
+        }
+        tokens.push(token);
+      } catch {
         break;
       }
-      tokens.push(token);
     }
 
     // restore cursor & position
