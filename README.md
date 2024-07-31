@@ -57,16 +57,17 @@
   - [ ] .min
   - [ ] .max
   - [x] .sum
-- [ ] objects
+- [x] objects
+- [ ] mapped objects
 - [ ] records
-- [ ] unions
-- [ ] intersections
+- [x] unions
+- [x] intersections
 - [x] string literals
 - [x] match
 - [x] first-class testing framework? (kinda)
 - [x] syntax highlighting (barely works)
-- [ ] fix all todos and fixmes
-- [ ] finish type-checker and integrate it with compiler
+- [ ] imports/exports
+- [ ] language server
 
 ## Syntax highlighting
 

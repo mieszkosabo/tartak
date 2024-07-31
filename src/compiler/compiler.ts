@@ -627,6 +627,16 @@ namespace ${section.name} {
             .map((e) => this._compile(e, env))
             .join(", ")}]`;
         })
+        .with({ type: "ObjectLiteral" }, (lit) => {
+          return `{${lit.properties
+            .map((p) => {
+              const key = p.computed
+                ? `[${this._compile(p.key, env)}]`
+                : `"${p.key}"`;
+              return `${key}: ${this._compile(p.value, env)}`;
+            })
+            .join(", ")}}`;
+        })
         .otherwise(() => `unimplemented, ${JSON.stringify(ast, null, 2)}`)
     );
   }

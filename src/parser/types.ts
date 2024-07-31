@@ -26,6 +26,7 @@ export type TartakAST = { position: Position } & (
   | Section
   | Statement
   | MatchArm
+  | ObjectProperty
 );
 
 export type Literal =
@@ -34,8 +35,21 @@ export type Literal =
   | { type: "NumberKeyword" }
   | { type: "Tuple"; elements: Expression[] }
   | { type: "Lambda"; params: Param[]; body: Expression }
+  | { type: "ObjectLiteral"; properties: ObjectProperty[] }
   | { type: "InferredVariable"; name: string; extends: Expression | null }
   | { type: "StringKeyword" };
+
+export type ObjectProperty = {
+  position: Position;
+  type: "ObjectProperty";
+  value: Expression;
+} & (
+  | { computed: false; key: string }
+  | {
+      computed: true;
+      key: Expression;
+    }
+);
 
 export type Statement = { position: Position } & (
   | {

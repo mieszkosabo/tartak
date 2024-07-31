@@ -4,6 +4,7 @@ import type {
   Definition,
   Expression,
   MatchArm,
+  ObjectProperty,
   Param,
   Statement,
   TemplateStringPart,
@@ -761,7 +762,8 @@ export class Parser {
       tokenType === "string" ||
       tokenType === "[" ||
       tokenType === "infer" ||
-      tokenType === "\\"
+      tokenType === "\\" ||
+      tokenType === "{"
     );
   }
 
@@ -807,6 +809,8 @@ export class Parser {
         return this.NumericLiteral();
       case "STRING":
         return this.StringLiteral();
+      case "{":
+        return this.ObjectLiteral();
       case "[":
         return this.TupleLiteral();
       case "infer":
@@ -814,6 +818,78 @@ export class Parser {
     }
 
     throw new SyntaxError(`Unexpected literal production`);
+  }
+
+  /**
+   * ObjectLiteral
+   *  : '{' OptObjectProperties '}'
+   */
+  private ObjectLiteral(): Expression {
+    const position = this.tokenizer.currentPosition();
+    this.eat("{");
+    const properties =
+      this.lookahead?.type === "}" ? [] : this.ObjectProperties();
+
+    this.eat("}");
+
+    return {
+      position,
+      type: "ObjectLiteral",
+      properties,
+    };
+  }
+
+  /**
+   * ObjectProperties
+   *  : ObjectProperty
+   *  | ObjectProperties ',' ObjectProperty
+   *  | ObjectProperties ';' ObjectProperty
+   */
+  private ObjectProperties(): ObjectProperty[] {
+    const properties = [this.ObjectProperty()];
+
+    while (this.lookahead?.type === "," || this.lookahead?.type === ";") {
+      this.eat(this.lookahead.type);
+      properties.push(this.ObjectProperty());
+    }
+
+    return properties;
+  }
+
+  /**
+   * ObjectProperty
+   *  : Identifier ':' Expression
+   *  | '[' Expression ']' ':' Expression
+   */
+  private ObjectProperty(): ObjectProperty {
+    const position = this.tokenizer.currentPosition();
+    if (this.lookahead?.type === "[") {
+      this.eat("[");
+      const key = this.Expression();
+      this.eat("]");
+      this.eat(":");
+      const value = this.Expression();
+
+      return {
+        position,
+        type: "ObjectProperty",
+        key,
+        computed: true,
+        value,
+      };
+    }
+
+    const key = this.Identifier();
+    this.eat(":");
+    const value = this.Expression();
+
+    return {
+      position,
+      type: "ObjectProperty",
+      key: key.name,
+      computed: false,
+      value,
+    };
   }
 
   private InferredVariable(): Expression {

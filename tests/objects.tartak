@@ -1,0 +1,18 @@
+type o1 = {
+  a: 1;
+  b: "hello"
+}
+
+type o2 = {
+  c: "yo"
+}
+
+#[test] :{
+  AssertEqual(o1, {
+    a: 1;
+    b: "hello"
+  });
+  AssertEqual(o2, {
+    c: "yo"
+  });
+}
