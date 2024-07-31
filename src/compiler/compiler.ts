@@ -157,6 +157,13 @@ namespace ${section.name} {
           return ident.name;
         })
         .with({ type: "BinaryExpression" }, (expr) => {
+          if (expr.operator === "&" || expr.operator === "|") {
+            const left = this._compile(expr.left, env);
+            const right = this._compile(expr.right, env);
+
+            return `(${left} ${expr.operator} ${right})`;
+          }
+
           const fn: {
             fName: string;
             leftType: string | null;

@@ -65,6 +65,10 @@ const spec = [
   [/^\|\|/, "LOGICAL_OR"],
   [/^!/, "LOGICAL_NOT"],
 
+  // Intersection and union
+  // [/^&/, "INTERSECTION"],
+  // [/^\|/, "UNION"],
+
   // ---
   // Math
   [/^[+\-]/, "ADDITIVE_OPERATOR"],

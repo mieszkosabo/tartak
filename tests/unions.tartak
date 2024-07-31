@@ -1,0 +1,17 @@
+
+type u = 1 | 2;
+
+type v = 1 | "hello" | [1, 2, 3];
+
+type x = :{
+  let a = 10;
+  let b = "hello";
+
+  a & b
+}
+
+#[test] :{
+  AssertEqual(u, 1 | 2);
+  AssertEqual(v, 1 | "hello" | [1, 2, 3]);
+  AssertEqual(x, never);
+}
