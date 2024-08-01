@@ -35,14 +35,19 @@ function compileFile(filePath: string) {
     process.exit(1);
   }
 
-  const compiler = new Compiler();
-  const contents = fs.readFileSync(filePath);
-  const compiled = compiler.compile(contents.toString());
-  const compiledPath = path.join(
-    path.dirname(filePath),
-    `${path.basename(filePath)}.ts`
-  );
-  fs.writeFileSync(compiledPath, compiled);
+  try {
+    const compiler = new Compiler();
+    const contents = fs.readFileSync(filePath);
+    const compiled = compiler.compile(contents.toString());
+    const compiledPath = path.join(
+      path.dirname(filePath),
+      `${path.basename(filePath)}.ts`
+    );
+    fs.writeFileSync(compiledPath, compiled);
+  } catch (e) {
+    console.error(`Error while compiling ${filePath}`);
+    console.error(e);
+  }
 }
 
 function compileDir(dirPath: string) {

@@ -641,7 +641,10 @@ namespace ${section.name} {
               const key = p.computed
                 ? `[${this._compile(p.key, env)}]`
                 : `"${p.key}"`;
-              return `${key}: ${this._compile(p.value, env)}`;
+              return `${key}${p.optional ? "?" : ""}: ${this._compile(
+                p.value,
+                env
+              )}`;
             })
             .join(", ")}}`;
         })

@@ -8,7 +8,7 @@ type o2 = {
 }
 
 type o3 = {
-  a: string;
+  a?: string;
   b: "hello";
 }
 

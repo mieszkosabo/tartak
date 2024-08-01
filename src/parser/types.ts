@@ -51,6 +51,7 @@ export type ObjectProperty = {
   position: Position;
   type: "ObjectProperty";
   value: Expression;
+  optional: boolean;
 } & (
   | { computed: false; key: string }
   | {

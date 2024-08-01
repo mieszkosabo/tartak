@@ -3,7 +3,8 @@
 ## ROADMAP
 
 - [ ] mapped types
-- [ ] optional object properties
+- [ ] readonly
+- [x] optional object properties
 - [x] cli: --watch flag
 - [x] imports/exports
 - [x] closures

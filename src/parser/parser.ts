@@ -913,8 +913,8 @@ export class Parser {
 
   /**
    * ObjectProperty
-   *  : Identifier ':' Expression
-   *  | '[' Expression ']' ':' Expression
+   *  : Identifier OptOptional ':' Expression
+   *  | '[' Expression ']' OptOptional ':' Expression
    */
   private ObjectProperty(): ObjectProperty {
     const position = this.tokenizer.currentPosition();
@@ -922,6 +922,8 @@ export class Parser {
       this.eat("[");
       const key = this.Expression();
       this.eat("]");
+      // @ts-ignore TS doesn't understand that lookahead gets changed in `eat`
+      const optional = this.lookahead?.type === "?" ? !!this.eat("?") : false;
       this.eat(":");
       const value = this.Expression();
 
@@ -930,11 +932,13 @@ export class Parser {
         type: "ObjectProperty",
         key,
         computed: true,
+        optional,
         value,
       };
     }
 
     const key = this.Identifier();
+    const optional = this.lookahead?.type === "?" ? !!this.eat("?") : false;
     this.eat(":");
     const value = this.Expression();
 
@@ -943,6 +947,7 @@ export class Parser {
       type: "ObjectProperty",
       key: key.name,
       computed: false,
+      optional,
       value,
     };
   }
