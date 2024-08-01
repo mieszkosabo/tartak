@@ -9,6 +9,8 @@ type CompilerEnv = {
   params: VarName[];
 };
 
+const LOCAL_IMPORTS = process.env.LOCAL_IMPORTS === "true";
+
 export class Compiler {
   private parser = new Parser();
   private imports: {
@@ -61,19 +63,21 @@ export class Compiler {
             this.imports.hot.size > 0
               ? `import { type ${Array.from(this.imports.hot.values()).join(
                   ", type "
-                )} } from "hotscript"`
+                )} } from ${LOCAL_IMPORTS ? '"hotscript"' : '"tartak/hot"'}`
               : "";
           const mathImports =
             this.imports.math.size > 0
               ? `import { type ${Array.from(this.imports.math.values()).join(
                   ", type "
-                )} } from "ts-arithmetic"`
+                )} } from ${
+                  LOCAL_IMPORTS ? '"ts-arithmetic"' : '"tartak/math"'
+                }`
               : "";
           const preludeImports =
             this.imports.prelude.size > 0
               ? `import { type ${Array.from(this.imports.prelude.values()).join(
                   ", type "
-                )} } from "@/prelude"`
+                )} } from ${LOCAL_IMPORTS ? '"@/prelude"' : '"tartak/prelude"'}`
               : "";
 
           const lambdaDefs = Object.values(this.lambdas)

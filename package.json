@@ -1,18 +1,75 @@
 {
   "name": "tartak",
-  "module": "src/cli/index.ts",
-  "type": "module",
+  "author": {
+    "name": "Mieszko Sabo",
+    "url": "https://mieszko.sh"
+  },
+  "version": "0.1.0",
+  "main": "./dist/index.cjs",
+  "module": "./dist/cli/index.mjs",
+  "types": "./dist/cli/index.d.ts",
+  "sideEffects": false,
+  "license": "MIT",
+  "bin": "./dist/cli/index.js",
+  "files": [
+    "dist/**"
+  ],
+  "typesVersions": {
+    "*": {
+      "index": [
+        "dist/cli/index.d.ts"
+      ],
+      "prelude": [
+        "dist/prelude/index.d.ts"
+      ],
+      "hot": [
+        "dist/hot/index.d.ts"
+      ],
+      "math": [
+        "dist/math/index.d.ts"
+      ]
+    }
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/cli/index.d.ts",
+      "import": "./dist/cli/index.mjs",
+      "require": "./dist/cli/index.js",
+      "node": "./dist/cli/index.js"
+    },
+    "./prelude": {
+      "types": "./dist/prelude/index.d.ts",
+      "import": "./dist/prelude/index.mjs",
+      "require": "./dist/prelude/index.js",
+      "node": "./dist/prelude/index.js"
+    },
+    "./hot": {
+      "types": "./dist/hot/index.d.ts",
+      "import": "./dist/hot/index.mjs",
+      "require": "./dist/hot/index.js",
+      "node": "./dist/hot/index.js"
+    },
+    "./math": {
+      "types": "./dist/math/index.d.ts",
+      "import": "./dist/math/index.mjs",
+      "require": "./dist/math/index.js",
+      "node": "./dist/math/index.js"
+    }
+  },
   "scripts": {
-    "test:e2e": "bun . && tsc -p tsconfig.test.json"
+    "test:e2e": "bun . && tsc -p tsconfig.test.json",
+    "build": "tsup --entry src/cli/index.ts --entry src/prelude/index.ts --entry src/hot/index.ts --entry src/math/index.ts --format esm,cjs --dts --minify"
   },
   "devDependencies": {
     "@types/bun": "1.1.0",
+    "tsup": "^8.2.3",
     "vitest": "^1.4.0"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "commander": "^12.1.0",
     "hotscript": "^1.0.13",
     "ts-arithmetic": "^0.1.1",
     "ts-pattern": "^5.1.1",

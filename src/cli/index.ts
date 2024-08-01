@@ -1,26 +1,58 @@
+#!/usr/bin/env node
+
 import { Compiler } from "@/compiler";
 import fs from "node:fs";
 import path from "node:path";
+import { program } from "commander";
 
-const dir = "tests";
+program.description("Tartak compiler");
 
-const files = fs.readdirSync(dir).filter((f) => f.endsWith(".tartak"));
+program.parse();
 
-const removeExtension = (filename: string) => {
-  const parts = filename.split(".");
-  parts.pop();
-  return parts.join(".");
-};
+const argPath = program.args[0] ?? ".";
 
-for (const file of files) {
-  console.log(`Compiling ${file}`);
+const isFile = fs.statSync(argPath).isFile();
+
+if (isFile && !argPath.endsWith(".tartak")) {
+  console.error(
+    "Invalid file extension, compiler can be only used with .tartak files"
+  );
+  process.exit(1);
+}
+
+if (isFile) {
+  console.log(`Compiling ${argPath}`);
+  compileFile(path.resolve(argPath));
+} else {
+  // recursively compile all .tartak files starting from the given directory
+  compileDir(path.resolve(argPath));
+}
+
+function compileFile(filePath: string) {
   const compiler = new Compiler();
-  const filePath = path.join(dir, file);
   const contents = fs.readFileSync(filePath);
-
   const compiled = compiler.compile(contents.toString());
-
-  const compiledPath = path.join(dir, `${file}.ts`);
-
+  const compiledPath = path.join(
+    path.dirname(filePath),
+    `${path.basename(filePath)}.ts`
+  );
+  console.log(`Writing to ${compiledPath}`);
   fs.writeFileSync(compiledPath, compiled);
+}
+
+function compileDir(dirPath: string) {
+  const files = fs
+    .readdirSync(dirPath, { withFileTypes: true })
+    .filter((f) => f.isFile() && f.name.endsWith(".tartak"));
+
+  for (const file of files) {
+    compileFile(path.join(dirPath, file.name));
+  }
+  const dirs = fs
+    .readdirSync(dirPath, { withFileTypes: true })
+    .filter((f) => f.isDirectory());
+
+  for (const dir of dirs) {
+    compileDir(path.join(dirPath, dir.name));
+  }
 }
