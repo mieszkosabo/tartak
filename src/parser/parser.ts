@@ -900,6 +900,11 @@ export class Parser {
 
     while (this.lookahead?.type === "," || this.lookahead?.type === ";") {
       this.eat(this.lookahead.type);
+      // @ts-ignore lookahead?.type changes after `eat` so the
+      // error is incorrect
+      if (this.lookahead?.type === "}") {
+        break;
+      }
       properties.push(this.ObjectProperty());
     }
 

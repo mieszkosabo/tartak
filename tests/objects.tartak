@@ -4,7 +4,12 @@ type o1 = {
 }
 
 type o2 = {
-  c: "yo"
+  c: "yo";
+}
+
+type o3 = {
+  a: string;
+  b: "hello";
 }
 
 #[test] :{

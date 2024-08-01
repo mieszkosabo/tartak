@@ -4,31 +4,37 @@ import { Compiler } from "@/compiler";
 import fs from "node:fs";
 import path from "node:path";
 import { program } from "commander";
+import { watch } from "chokidar";
 
-program.description("Tartak compiler");
+program
+  .option("-w, --watch", "recompile on file change")
+  .description("Tartak compiler");
 
 program.parse();
 
-const argPath = program.args[0] ?? ".";
-
+const argPath = path.resolve(program.args[0] ?? ".");
 const isFile = fs.statSync(argPath).isFile();
+const isWatch = !!program.opts().watch;
 
-if (isFile && !argPath.endsWith(".tartak")) {
-  console.error(
-    "Invalid file extension, compiler can be only used with .tartak files"
-  );
-  process.exit(1);
-}
-
-if (isFile) {
-  console.log(`Compiling ${argPath}`);
-  compileFile(path.resolve(argPath));
-} else {
-  // recursively compile all .tartak files starting from the given directory
-  compileDir(path.resolve(argPath));
-}
+const compile = () => {
+  const now = performance.now();
+  if (isFile) {
+    compileFile(argPath);
+  } else {
+    // recursively compile all .tartak files starting from the given directory
+    compileDir(argPath);
+  }
+  console.log(`✅ Done in ${(performance.now() - now).toFixed(2)}ms\n`);
+};
 
 function compileFile(filePath: string) {
+  if (!filePath.endsWith(".tartak")) {
+    console.error(
+      "Invalid file extension, compiler can be only used with .tartak files"
+    );
+    process.exit(1);
+  }
+
   const compiler = new Compiler();
   const contents = fs.readFileSync(filePath);
   const compiled = compiler.compile(contents.toString());
@@ -36,7 +42,6 @@ function compileFile(filePath: string) {
     path.dirname(filePath),
     `${path.basename(filePath)}.ts`
   );
-  console.log(`Writing to ${compiledPath}`);
   fs.writeFileSync(compiledPath, compiled);
 }
 
@@ -55,4 +60,23 @@ function compileDir(dirPath: string) {
   for (const dir of dirs) {
     compileDir(path.join(dirPath, dir.name));
   }
+}
+
+if (!isWatch) {
+  compile();
+  process.exit(0);
+} else {
+  compile();
+  watch(isFile ? argPath : `${argPath}/**/*.tartak`, { ignoreInitial: true })
+    .on("all", (ev, path) => {
+      console.log(`⏳ Compiling ${path}`);
+      const now = performance.now();
+      compileFile(path);
+      console.log(
+        `✅ Compiled ${path} in ${(performance.now() - now).toFixed(2)}ms\n`
+      );
+    })
+    .on("ready", () => {
+      console.log(`👀 Watching for changes in ${argPath}`);
+    });
 }

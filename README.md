@@ -3,8 +3,8 @@
 ## ROADMAP
 
 - [ ] mapped types
-- [ ] optionals
-- [ ] cli: --watch flag
+- [ ] optional object properties
+- [x] cli: --watch flag
 - [x] imports/exports
 - [x] closures
 - [x] partial application
