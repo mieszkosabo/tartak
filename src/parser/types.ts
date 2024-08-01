@@ -11,12 +11,19 @@ export type Definition = { position: Position } & {
   name: string;
   params: Param[];
   body: Expression;
+  isExported: boolean;
 };
 
 export type Section = {
   type: "Section";
   name: string;
   body: Statement[];
+};
+
+export type ImportStatement = {
+  type: "ImportStatement";
+  imports: string[];
+  source: string;
 };
 
 export type TartakAST = { position: Position } & (
@@ -27,6 +34,7 @@ export type TartakAST = { position: Position } & (
   | Statement
   | MatchArm
   | ObjectProperty
+  | ImportStatement
 );
 
 export type Literal =

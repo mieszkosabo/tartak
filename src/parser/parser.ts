@@ -7,6 +7,7 @@ import type {
   ObjectProperty,
   Param,
   Statement,
+  TartakAST,
   TemplateStringPart,
 } from "./types";
 
@@ -32,38 +33,83 @@ export class Parser {
     return {
       position: this.tokenizer.currentPosition(),
       type: "Program",
-      body: this.DefinitionOrSectionList(),
+      body: this.TopLevelElementsList(),
     } as const;
   }
 
-  // DefinitionOrSectionList: Definition | Section | DefinitionOrSectionList ...;
+  // TopLevelElementsList: Definition | Section | ImportStatement | DefinitionOrSectionList ...;
   //
   // Since we use a recursive descent parser, we can't do left recursion,
   // so the above rule (and everywhere else) will be implemented with a loop.
-  private DefinitionOrSectionList(stopToken: Token["type"] | null = null) {
-    const definitions = [this.DefinitionOrSection()];
+  private TopLevelElementsList(stopToken: Token["type"] | null = null) {
+    const definitions = [this.TopLevelElement()];
 
     while (this.lookahead !== null && this.lookahead.type !== stopToken) {
-      definitions.push(this.DefinitionOrSection());
+      definitions.push(this.TopLevelElement());
     }
 
     return definitions;
   }
 
   /**
-   * DefinitionOrSection
-   *  : Definition | Section;
+   *  TopLevelElement
+   *  : Definition | Section | ImportStatement;
    */
-  private DefinitionOrSection() {
-    if (this.lookahead?.type === "type") {
+  private TopLevelElement() {
+    if (this.lookahead?.type === "type" || this.lookahead?.type === "export") {
       return this.Definition();
     } else if (this.lookahead?.type === "#") {
       return this.Section();
+    } else if (this.lookahead?.type === "import") {
+      return this.ImportStatement();
     }
 
     throw new SyntaxError(
       `Unexpected token: "${this.lookahead?.type}". Should be a definition or section.`
     );
+  }
+
+  /**
+   * ImportStatement
+   * : 'import' '{' ImportList '}' 'from' STRING OptSemicolon
+   */
+  private ImportStatement(): Extract<TartakAST, { type: "ImportStatement" }> {
+    const position = this.tokenizer.currentPosition();
+    this.eat("import");
+    this.eat("{");
+    const imports = this.ImportList();
+    this.eat("}");
+    this.eat("from");
+    const source = this.StringLiteral() as Extract<
+      Expression,
+      { type: "StringLiteral" }
+    >;
+    if (this.lookahead?.type === ";") {
+      this.eat(";");
+    }
+
+    return {
+      position,
+      type: "ImportStatement",
+      imports: imports.map((i) => i.name),
+      source: source.value,
+    };
+  }
+
+  /**
+   * ImportList
+   *  : Identifier
+   *  | ImportList ',' Identifier
+   */
+  private ImportList() {
+    const imports = [this.Identifier()];
+
+    while (this.lookahead?.type === ",") {
+      this.eat(",");
+      imports.push(this.Identifier());
+    }
+
+    return imports;
   }
 
   /**
@@ -89,9 +135,12 @@ export class Parser {
     } as const;
   }
 
-  // Definition: "type" Identifier "=" Type ";";
+  // Definition: OptExport "type" Identifier "=" Type ";";
   private Definition() {
     const position = this.tokenizer.currentPosition();
+    const isExported =
+      this.lookahead?.type === "export" ? !!this.eat("export") : false;
+
     this.eat("type");
 
     const name = this.Identifier().name;
@@ -108,6 +157,7 @@ export class Parser {
 
     return {
       type: "Definition",
+      isExported,
       position,
       params,
       name,

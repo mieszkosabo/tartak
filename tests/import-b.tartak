@@ -1,0 +1,3 @@
+import { a } from './import-a.tartak';
+
+type b = a + 1;

@@ -42,6 +42,9 @@ const spec = [
   [/^\bif\b/, "if"],
   [/^\bthen\b/, "then"],
   [/^\belse\b/, "else"],
+  [/^\bexport\b/, "export"],
+  [/^\bimport\b/, "import"],
+  [/^\bfrom\b/, "from"],
 
   // ---
   // Numbers

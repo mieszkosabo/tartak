@@ -104,9 +104,13 @@ ${defs}`;
 
             const lambdaName = this._compile(lambdaExpr, env);
 
-            return `type ${def.name} = ${lambdaName}`;
+            return `${def.isExported ? "export" : ""} type ${
+              def.name
+            } = ${lambdaName}`;
           } else {
-            return `type ${def.name} = ${this._compile(def.body, env)}`;
+            return `${def.isExported ? "export" : ""} type ${
+              def.name
+            } = ${this._compile(def.body, env)}`;
           }
         })
 
@@ -640,6 +644,10 @@ namespace ${section.name} {
               return `${key}: ${this._compile(p.value, env)}`;
             })
             .join(", ")}}`;
+        })
+
+        .with({ type: "ImportStatement" }, (stmt) => {
+          return `import { ${stmt.imports.join(", ")} } from "${stmt.source}"`;
         })
         .otherwise(() => `unimplemented, ${JSON.stringify(ast, null, 2)}`)
     );

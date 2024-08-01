@@ -2,6 +2,10 @@
 
 ## ROADMAP
 
+- [ ] mapped types
+- [ ] optionals
+- [ ] cli: --watch flag
+- [x] imports/exports
 - [x] closures
 - [x] partial application
 - [x] arithmetic operators
@@ -58,7 +62,7 @@
   - [ ] .max
   - [x] .sum
 - [x] objects
-- [ ] mapped objects
+  - [ ] accessing properties
 - [ ] records
 - [x] unions
 - [x] intersections
@@ -66,7 +70,6 @@
 - [x] match
 - [x] first-class testing framework? (kinda)
 - [x] syntax highlighting (barely works)
-- [ ] imports/exports
 - [ ] language server
 
 ## Syntax highlighting
