@@ -156,9 +156,9 @@ namespace ${section.name} {
           const maybeParamsIdx = env.params.indexOf(ident.name);
 
           if (maybeOuterScopeIdx !== -1) {
-            return `this["arg0"][${maybeOuterScopeIdx}] /** ${ident.name} */`;
+            return `this["arg0"][${maybeOuterScopeIdx}]`;
           } else if (maybeParamsIdx !== -1) {
-            return `this["arg${maybeParamsIdx + 1}"] /** ${ident.name} */`;
+            return `this["arg${maybeParamsIdx + 1}"]`;
           }
 
           // default: inner scope variable or global identifier
@@ -314,6 +314,7 @@ namespace ${section.name} {
           } = match(expr.operator)
             .with("||", () => {
               this.imports.hot.add("Booleans");
+              this.imports.hot.add("Call");
               return {
                 fName: "Booleans.Or",
                 leftType: null,
@@ -322,6 +323,7 @@ namespace ${section.name} {
             })
             .with("&&", () => {
               this.imports.hot.add("Booleans");
+              this.imports.hot.add("Call");
               return {
                 fName: "Booleans.And",
                 leftType: null,
@@ -410,7 +412,18 @@ namespace ${section.name} {
             if (args.length === 0 && expr.arguments.length !== 0) {
               const args = evaledArgs.map((arg) => arg.name).join(",");
               // FIXME: this is a temporary hack to make it work: we call a fun with Apply, and if it
-              // extends never, then we call it with PartialApply lol
+              // extends never, then we assume that it's because it's a partial application
+              // so we call it with PartialApply and cross our fingers
+
+              // FIXME: this is a hack to defer the type evaluation, so that we won't run
+              // into "Type instantiation is excessively deep and possibly infinite" error too often
+              // for now I'm only implementing it for the one argument case, but if it works, I'll
+              // update it to work for all cases
+              if (evaledArgs.length === 1) {
+                return `(${args} extends any ? Apply<${evaledCallee}, [${args}]> : never) extends never
+                ? (PartialApply<${evaledCallee}, [${args}]>)
+                : (Apply<${evaledCallee}, [${args}]>)`;
+              }
 
               return `(Apply<${evaledCallee}, [${args}]>) extends never
                 ? (PartialApply<${evaledCallee}, [${args}]>)
@@ -529,41 +542,37 @@ namespace ${section.name} {
 
           const { scrutinee, arms } = expr;
 
+          // match arm -> `_ extends {pattern} ? {expression} : _`
+          // so for each arm we want to add the scrutinee to the beginning:
+          // `({scrutinee} extends {pattern} ? {expression} : _`
+          // then we join them with a space, and
+          // then we add `undefined` for the final else case, and
+          // then we add as many `)` as there are arms
+          // e.g. `({scrutinee} extends {pattern} ? {expression} : ({scrutinee} extends {pattern2} ? {expression2} : undefined))`
+
           const evaledScrutinee = this._compile(scrutinee, env);
+
           const evaledArms = arms
             .map((arm) => this._compile(arm, env))
-            .join(", ");
+            .map((arm) => `(${evaledScrutinee} ${arm}`)
+            .join(" ")
+            .concat(" undefined" + ")".repeat(arms.length));
 
-          return `Call<
-  Match<[
-  ${evaledArms}
-  ]>,
-  ${evaledScrutinee} 
-          >`;
+          return evaledArms;
         })
 
         .with({ type: "MatchArm" }, (arm) => {
+          // see `MatchExpression` for the explanation of how this works
+
           const { pattern, expression } = arm;
 
-          this.context.evaluatingPattern = true;
-          const evaledPattern = this._compile(pattern, env);
-
-          this.context.evaluatingPattern = false;
           const evaledPatternWithVariables = this._compile(pattern, env);
 
           const evaledExpression = this._compile(expression, env);
-
-          const lambdaName = `arm_${this.freshId()}`;
-          this.lambdas[lambdaName] = {
-            code: `interface ${lambdaName} extends Fn {
-            return: this["arg0"] extends ${evaledPatternWithVariables} ? ${evaledExpression} : never
-          }`,
-          };
-
           // reset inferredVariables
           this.inferredVariables = [];
 
-          return `Match.With<${evaledPattern}, ${lambdaName}>`;
+          return `extends ${evaledPatternWithVariables} ? ${evaledExpression} : `;
         })
 
         .with({ type: "ConditionalExpression" }, (expr) => {

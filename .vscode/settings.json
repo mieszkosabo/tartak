@@ -1,3 +1,4 @@
 {
-  "cSpell.words": ["Tartak"]
+  "cSpell.words": ["Tartak"],
+  "typescript.tsdk": "node_modules/typescript/lib"
 }
