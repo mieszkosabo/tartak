@@ -3,6 +3,7 @@ import { Tokenizer, type Token } from "./tokenizer";
 import type {
   Definition,
   Expression,
+  MappedType,
   MatchArm,
   ObjectProperty,
   Param,
@@ -860,7 +861,7 @@ export class Parser {
       case "STRING":
         return this.StringLiteral();
       case "{":
-        return this.ObjectLiteral();
+        return this.ObjectLiteralOrMappedType();
       case "[":
         return this.TupleLiteral();
       case "infer":
@@ -868,6 +869,58 @@ export class Parser {
     }
 
     throw new SyntaxError(`Unexpected literal production`);
+  }
+
+  /**
+   * ObjectLiteralOrMappedType
+   *  : ObjectLiteral
+   *  | MappedType
+   */
+  private ObjectLiteralOrMappedType(): Expression {
+    if (
+      this.tokenizer
+        .peek(4)
+        .map(({ type }) => type)
+        .includes("in")
+    ) {
+      return this.MappedType();
+    } else {
+      return this.ObjectLiteral();
+    }
+  }
+
+  /**
+   * MappedType
+   *  : '{' '[' Identifier 'in' Expression OptAlias ']' OptOptional ':' Expression'}'
+   */
+  private MappedType(): MappedType {
+    const position = this.tokenizer.currentPosition();
+    this.eat("{");
+    this.eat("[");
+    const key = this.Identifier();
+    this.eat("in");
+    const union = this.Expression();
+
+    let alias = null;
+    if (this.lookahead?.type === "as") {
+      this.eat("as");
+      alias = this.Expression();
+    }
+    this.eat("]");
+    const optional = this.lookahead?.type === "?" ? !!this.eat("?") : false;
+    this.eat(":");
+    const value = this.Expression();
+    this.eat("}");
+
+    return {
+      position,
+      type: "MappedType",
+      key: key.name,
+      union,
+      value,
+      alias,
+      optional,
+    };
   }
 
   /**

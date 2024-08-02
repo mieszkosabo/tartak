@@ -46,6 +46,8 @@ const spec = [
   [/^\bexport\b/, "export"],
   [/^\bimport\b/, "import"],
   [/^\bfrom\b/, "from"],
+  [/^\bin\b/, "in"],
+  [/^\bas\b/, "as"],
 
   // ---
   // Numbers

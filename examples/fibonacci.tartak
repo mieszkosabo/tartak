@@ -1,0 +1,59 @@
+// A couple of ways to implement a function that calculates 
+// n'th term of the Fibonacci sequence in Tartak
+
+// basic recursive way, from definition
+export type fib1 = (n: number) => :{
+  if n < 2 then :{
+    n
+  } else :{
+    fib1(n - 1) + fib1(n - 2)
+  }
+
+  // Or, could've just been:
+  // if n < 2 then n else fib1(n - 1) + fib1(n - 2)
+}
+
+#[test] :{
+  AssertEqual(fib1(0), 0);
+  AssertEqual(fib1(1), 1);
+  AssertEqual(fib1(10), 55);
+}
+
+// same, but with pattern matching
+export type fib2 = (n: number) =>
+  match n {
+    0 -> 0,
+    1 -> 1,
+    any -> fib2(n - 1) + fib2(n - 2)
+  }
+
+#[test] :{
+  AssertEqual(fib2(0), 0);
+  AssertEqual(fib2(1), 1);
+  AssertEqual(fib2(10), 55);
+}
+
+
+// "optimized" version, with tail recursion
+export type fib3 = (n: number) => :{
+  if n == 0 then :{
+    0
+  } else :{
+    fibIterLoop(n, 2, [0, 1])
+  }
+}
+
+type fibIterLoop = (n: number, i: number, ab: [number, number]) => :{
+  if i <= n then :{
+    let c = ab[0] + ab[1];
+    fibIterLoop(n, i + 1, [ab[1], c])
+  } else :{
+    ab[1]
+  }
+}
+
+#[test] :{
+  AssertEqual(fib3(0), 0);
+  AssertEqual(fib3(1), 1);
+  AssertEqual(fib3(10), 55);
+}

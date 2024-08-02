@@ -1,8 +1,10 @@
 # tartak
 
+Tartak is a functional programming language that compiles to **TypeScript types**.
+
 ## ROADMAP
 
-- [ ] mapped types
+- [x] mapped types
 - [ ] readonly
 - [x] optional object properties
 - [x] cli: --watch flag
@@ -63,7 +65,7 @@
   - [ ] .max
   - [x] .sum
 - [x] objects
-  - [ ] accessing properties
+  - [x] accessing properties
 - [ ] records
 - [x] unions
 - [x] intersections

@@ -537,9 +537,6 @@ namespace ${section.name} {
         })
 
         .with({ type: "MatchExpression" }, (expr) => {
-          this.imports.hot.add("Match");
-          this.imports.hot.add("Call");
-
           const { scrutinee, arms } = expr;
 
           // match arm -> `_ extends {pattern} ? {expression} : _`
@@ -661,6 +658,21 @@ namespace ${section.name} {
         .with({ type: "ImportStatement" }, (stmt) => {
           return `import { ${stmt.imports.join(", ")} } from "${stmt.source}"`;
         })
+
+        .with({ type: "MappedType" }, (mapped) => {
+          const { key, union, alias, optional, value } = mapped;
+          return `{ [${key} in ${this._compile(union, env)} ${
+            alias ? `as ${this._compile(alias, env)}` : ""
+          }]${optional ? "?" : ""}: ${this._compile(value, env)} }`;
+        })
+
+        .with({ type: "MemberExpression" }, (expr) => {
+          const obj = this._compile(expr.object, env);
+          const prop = this._compile(expr.property, env);
+
+          return `(${obj})[${prop}]`;
+        })
+
         .otherwise(() => `unimplemented, ${JSON.stringify(ast, null, 2)}`)
     );
   }

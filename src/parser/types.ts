@@ -44,6 +44,7 @@ export type Literal =
   | { type: "Tuple"; elements: Expression[] }
   | { type: "Lambda"; params: Param[]; body: Expression }
   | { type: "ObjectLiteral"; properties: ObjectProperty[] }
+  | MappedType
   | { type: "InferredVariable"; name: string; extends: Expression | null }
   | { type: "StringKeyword" };
 
@@ -59,6 +60,16 @@ export type ObjectProperty = {
       key: Expression;
     }
 );
+
+export type MappedType = {
+  position: Position;
+  type: "MappedType";
+  key: string;
+  union: Expression;
+  alias: Expression | null;
+  value: Expression;
+  optional: boolean;
+};
 
 export type Statement = { position: Position } & (
   | {
