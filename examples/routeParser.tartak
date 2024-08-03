@@ -1,0 +1,33 @@
+
+// exported types will be available for you to import from compiled files
+// to distinguish between objects ({}) and blocks, blocks have a colon before the opening brace (:{})
+export type parseRoute = (route: string) => :{
+  // assign computations to variables like this
+  let parts = route.split("/"); // -> ["users", "<id:string>", "posts", "<index:number>"]
+  
+  // last expression is the return value, like in Rust
+  parts
+    // method chaining!
+    .filter((part) => part.startsWith("<")) // -> ["<id:string>", "<index:number>"]
+    .map((part) => match part {
+      // infer subparts of the expression during pattern matching
+      `<${infer name}:${infer ty}>` -> [name, ty]
+    }) // -> [["id", "string"], ["index", "number"]]
+    .toUnion() // -> ["id", "string"] | ["index", "number"]
+    .fromEntries() // -> { id: "string"; index: "number" }
+    .mapValues((ty) => match ty {
+      "string" -> string,
+      "number" -> number
+    }) // -> { id: string; index: number }
+}
+
+type params = parseRoute("/users/<id:string>/posts/<index:number>")
+//   ^?
+//    { id: string; index: number; }
+
+
+// Add tests alongside your code
+#[test] :{
+  AssertEqual(parseRoute("/users/<id:string>/posts/<index:number>"), { id: string, index: number })
+  AssertEqual(parseRoute("/users/noParams"), {})
+}

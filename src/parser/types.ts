@@ -54,7 +54,7 @@ export type ObjectProperty = {
   value: Expression;
   optional: boolean;
 } & (
-  | { computed: false; key: string }
+  | { computed: false; key: string | number }
   | {
       computed: true;
       key: Expression;
@@ -64,7 +64,7 @@ export type ObjectProperty = {
 export type MappedType = {
   position: Position;
   type: "MappedType";
-  key: string;
+  key: string | number;
   union: Expression;
   alias: Expression | null;
   value: Expression;

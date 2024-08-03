@@ -1,9 +1,0 @@
-
-export type parseParams = (url: string) =>
-  match url {
-    `${infer Head}/${infer Rest}` -> parseParams(Head) & parseParams(Rest),
-    `:${infer Param extends string}` -> { [K in Param]: string },
-    any -> {}
-  }
-
-type t = parseParams("aaa/:bbb/ccc/:ddd")

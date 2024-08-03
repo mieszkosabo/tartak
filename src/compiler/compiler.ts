@@ -1,4 +1,4 @@
-import { match } from "ts-pattern";
+import { match, P } from "ts-pattern";
 import { Parser } from "../parser/parser";
 import type { Expression, Statement, TartakAST } from "../parser/types";
 
@@ -677,8 +677,6 @@ namespace ${section.name} {
     );
   }
 
-  // TODO: apart from `map` other needs to be custom implemented from scratch
-  // to adhere to the scope/params convention I have going on here
   private compileMethodCall(
     expr: Extract<Expression, { type: "CallExpression" }>,
     env: CompilerEnv
@@ -688,53 +686,24 @@ namespace ${section.name} {
       throw new Error("Expected callee to be a MemberExpression");
     }
 
-    this.imports.hot.add("Pipe");
-
-    const fun = match(callee.property)
-      .with({ type: "Identifier", name: "sort" }, () => {
-        this.imports.prelude.add("Sort");
-        return "Sort";
-      })
-      .with({ type: "Identifier", name: "sum" }, () => {
-        this.imports.prelude.add("Sum");
-        return "Sum";
-      })
-      .with({ type: "Identifier", name: "head" }, () => {
-        this.imports.prelude.add("Head");
-        return "Head";
-      })
-      .with({ type: "Identifier", name: "tail" }, () => {
-        this.imports.prelude.add("Tail");
-        return "Tail";
-      })
-      .with({ type: "Identifier", name: "last" }, () => {
-        this.imports.prelude.add("Last");
-        return "Last";
-      })
-      .with({ type: "Identifier", name: "at" }, () => {
-        this.imports.prelude.add("At");
-        return `At`;
-      })
-      .with({ type: "Identifier", name: "drop" }, () => {
-        this.imports.prelude.add("Drop");
-        return `Drop`;
-      })
-      .with({ type: "Identifier", name: "take" }, () => {
-        this.imports.prelude.add("Take");
-        return `Take`;
-      })
-
-      .with({ type: "Identifier", name: "map" }, () => {
-        this.imports.prelude.add("Map");
-        return `Map`;
-      })
+    const methodName = match(callee.property)
+      .with({ type: "Identifier", name: P.select() }, (name) => name)
       .otherwise(() => {
         throw new Error("unimplemented method " + callee.property);
       });
 
-    return `(${fun}<${this._compile(callee.object, env)}${
+    const capitalized = methodName[0].toUpperCase() + methodName.slice(1);
+    const obj = this._compile(callee.object, env);
+    const args = expr.arguments.map((arg) => this._compile(arg, env)).join(",");
+    // obj + args
+    const fullFunArguments = `<${obj}${
       expr.arguments.length > 0 ? ", " : ""
-    }${expr.arguments.map((arg) => this._compile(arg, env)).join(",")}>)`;
+    }${args}>`;
+
+    let fun = capitalized;
+    this.imports.prelude.add(capitalized);
+
+    return `(${fun}${fullFunArguments})`;
   }
 
   private freshId() {

@@ -17,4 +17,56 @@
   AssertEqual([1, 2, 3].take(2), [1, 2]);
 
   AssertEqual([1, 2, 3].map((x) => x + 10), [11, 12, 13]);
+
+  AssertEqual([1, 2, 3, 4].filter((x) => x > 2), [3, 4]);
+
+  AssertEqual([1, 2, 3].toUnion(), 1 | 2 | 3);
+
+  AssertEqual([1, 2, 3, 4].partition((x) => x < 3), [[1, 2], [3, 4]]);
+
+  AssertEqual([1, 2, 3, 4].isEmpty(), false);
+  AssertEqual([].isEmpty(), true);
+
+  AssertEqual([1, 2].zip(["a", "b"]), [[1, "a"], [2, "b"]]);
+
+  AssertEqual([1, 2].zipWith([1, 1], (x, y) => x + y), [2, 3]);
+  
+  AssertEqual([1, 2].zipWith([1, 1], (x, y) => x + y), [2, 3]);
+
+  AssertEqual(["hi", "man"].flatMap((s) => s.split("")), ["h", "i", "m", "a", "n"]);
+
+  AssertEqual([1, 2, 3].find((x) => x == 2), 2);
+
+  AssertEqual([1, 2, 3, 4, 5].takeWhile((x) => x < 3), [1, 2]);
+
+  AssertEqual([1, 2, 3, 4, 5].groupBy((x) => x % 2), { 1: [1, 3, 5], 0: [2, 4] });
+
+  AssertEqual(["hello", "world"].join(" "), "hello world");
+
+  AssertEqual([1, 2, 3].reduce((acc, val) => val + acc, 0), 6);
+
+  AssertEqual([1, 2, 3].reduceRight((acc, val) => val + acc, 0), 6);
+
+  AssertEqual([1, 2, 3].reverse(), [3, 2, 1]);
+
+  AssertEqual([1, 2, 3].every((x) => x % 2 == 0), false);
+  AssertEqual([2, 4, 6].every((x) => x % 2 == 0), true);
+
+  AssertEqual([1, 2, 3, 4].splitAt(2), [[1, 2], [3, 4]]);
+
+  AssertEqual([number, 42].toIntersection(), number & 42);
+
+  AssertEqual([1, 2, 3].prepend(0), [0, 1, 2, 3]);
+
+  AssertEqual([1, 2, 3].append(4), [1, 2, 3, 4]);
+
+  AssertEqual([1, 2].concat([3, 4]), [1, 2, 3, 4]);
+
+  AssertEqual([1, 2, 3, 4].min(), 1);
+
+  AssertEqual([1, 2, 3, 4].max(), 4);
+
+  AssertEqual((-42).abs(), 42);
+  
+  AssertEqual((11).abs(), 11);
 }

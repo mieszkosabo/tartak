@@ -891,13 +891,31 @@ export class Parser {
 
   /**
    * MappedType
-   *  : '{' '[' Identifier 'in' Expression OptAlias ']' OptOptional ':' Expression'}'
+   *  : '{' '[' (Identifier | string | number) 'in' Expression OptAlias ']' OptOptional ':' Expression'}'
    */
   private MappedType(): MappedType {
     const position = this.tokenizer.currentPosition();
     this.eat("{");
     this.eat("[");
-    const key = this.Identifier();
+    let key: Extract<
+      Expression,
+      { type: "Identifier" | "StringLiteral" | "NumericLiteral" }
+    >;
+    try {
+      key = this.Identifier();
+    } catch (_) {
+      try {
+        key = this.NumericLiteral() as Extract<
+          Expression,
+          { type: "NumericLiteral" }
+        >;
+      } catch (_) {
+        key = this.StringLiteral() as Extract<
+          Expression,
+          { type: "StringLiteral" }
+        >;
+      }
+    }
     this.eat("in");
     const union = this.Expression();
 
@@ -915,7 +933,7 @@ export class Parser {
     return {
       position,
       type: "MappedType",
-      key: key.name,
+      key: "name" in key ? key.name : key.value,
       union,
       value,
       alias,
@@ -966,7 +984,7 @@ export class Parser {
 
   /**
    * ObjectProperty
-   *  : Identifier OptOptional ':' Expression
+   *  : (Identifier | string | number) OptOptional ':' Expression
    *  | '[' Expression ']' OptOptional ':' Expression
    */
   private ObjectProperty(): ObjectProperty {
@@ -990,7 +1008,25 @@ export class Parser {
       };
     }
 
-    const key = this.Identifier();
+    let key: Extract<
+      Expression,
+      { type: "Identifier" | "StringLiteral" | "NumericLiteral" }
+    >;
+    try {
+      key = this.Identifier();
+    } catch (_) {
+      try {
+        key = this.NumericLiteral() as Extract<
+          Expression,
+          { type: "NumericLiteral" }
+        >;
+      } catch (_) {
+        key = this.StringLiteral() as Extract<
+          Expression,
+          { type: "StringLiteral" }
+        >;
+      }
+    }
     const optional = this.lookahead?.type === "?" ? !!this.eat("?") : false;
     this.eat(":");
     const value = this.Expression();
@@ -998,7 +1034,7 @@ export class Parser {
     return {
       position,
       type: "ObjectProperty",
-      key: key.name,
+      key: "name" in key ? key.name : key.value,
       computed: false,
       optional,
       value,

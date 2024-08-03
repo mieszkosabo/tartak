@@ -1,0 +1,41 @@
+
+#[test] :{
+  AssertEqual("hello".length(), 5);
+  AssertEqual("  hello world1".trimLeft(" "), "hello world1");
+  AssertEqual("  hello world1".trimRight("1"), "  hello world");
+  AssertEqual("  hello  ".trim(" "), "hello");
+  AssertEqual("hello world hello".replace("hello", "yo"), "yo world yo");
+  AssertEqual("a\nb\nc\nd".split("\n"), ["a", "b", "c", "d"]);
+  AssertEqual("hi! ".repeat(3), "hi! hi! hi! ");
+  AssertEqual("hello world".startsWith("hello"), true);
+  AssertEqual("hello world".startsWith("hi"), false);
+
+  AssertEqual("hello world".endsWith("world"), true);
+  AssertEqual("hello world".endsWith("hi"), false);
+
+  AssertEqual("hello".toTuple(), ["h", "e", "l", "l", "o"]);
+  AssertEqual("42".toNumber(), 42);
+  AssertEqual((42).toString(), "42");
+
+  AssertEqual("world".stringsPrepend("hello "), "hello world");
+  AssertEqual("hello".stringsAppend(" world"), "hello world");
+
+  AssertEqual("hello".uppercase(), "HELLO");
+  AssertEqual("HEllO".lowercase(), "hello");
+  AssertEqual("hello".capitalize(), "Hello");
+  AssertEqual("HELLO".uncapitalize(), "hELLO");
+
+  AssertEqual("helloWorld".snakeCase(), "hello_world");
+  AssertEqual("hello_world".camelCase(), "helloWorld");
+  AssertEqual("hello_world".kebabCase(), "hello-world");
+
+  AssertEqual("a".compare("b"), -1);
+  AssertEqual("b".compare("a"), 1);
+  AssertEqual("a".compare("a"), 0);
+
+  AssertEqual("a".lessThan("b"), true);
+  AssertEqual("a".lessThanOrEqual("a"), true);
+
+  AssertEqual("a".greaterThan("b"), false);
+  AssertEqual("a".greaterThanOrEqual("b"), false);
+}
