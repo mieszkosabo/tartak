@@ -4,7 +4,7 @@
     "name": "Mieszko Sabo",
     "url": "https://mieszko.sh"
   },
-  "version": "0.3.0",
+  "version": "0.3.1",
   "main": "./dist/index.cjs",
   "module": "./dist/cli/index.mjs",
   "types": "./dist/cli/index.d.ts",
