@@ -92,7 +92,12 @@ ${lambdaDefs}
 
 ${defs}`;
         })
-        .with({ type: "Definition" }, (def) => {
+        .with({ type: "Definition" }, (_def) => {
+          const keywords = _def.isExported ? "export type" : "type";
+
+          const def = _def.body.type === "Lambda" ? _def.body : _def;
+          const name = _def.name;
+
           if (def.params.length > 0) {
             // we want to keep all functions as lambdas, so we can partially apply them
             const lambdaExpr: Expression = {
@@ -103,14 +108,22 @@ ${defs}`;
             };
 
             const lambdaName = this._compile(lambdaExpr, env);
+            const HOTDefinition = `${keywords} ${name}HOT = ${lambdaName}`;
 
-            return `${def.isExported ? "export" : ""} type ${
-              def.name
-            } = ${lambdaName}`;
+            const params = def.params
+              .map((p) => this._compile(p, env))
+              .join(", ");
+            const genericDefinition = `${keywords} ${name}<${params}> = Call<${name}HOT, ${def.params.map(
+              (p) => p.name
+            )}>`;
+
+            if (_def.isExported) {
+              return `${HOTDefinition};\n${genericDefinition}`;
+            } else {
+              return `${HOTDefinition}`;
+            }
           } else {
-            return `${def.isExported ? "export" : ""} type ${
-              def.name
-            } = ${this._compile(def.body, env)}`;
+            return `${keywords} ${name} = ${this._compile(def.body, env)}`;
           }
         })
 
@@ -408,7 +421,7 @@ namespace ${section.name} {
           }));
 
           const cont = (args: { name: string; expr: string }[]): string => {
-            const evaledCallee = this._compile(expr.callee, env);
+            const evaledCallee = this._compile(expr.callee, env) + "HOT";
             if (args.length === 0 && expr.arguments.length !== 0) {
               const args = evaledArgs.map((arg) => arg.name).join(",");
               // FIXME: this is a temporary hack to make it work: we call a fun with Apply, and if it
@@ -474,12 +487,18 @@ namespace ${section.name} {
           const passingParams = env.params.map(
             (_, idx) => `this["arg${idx + 1}"]`
           );
-          return `[${passingInnerScope
+
+          const scope = passingInnerScope
             .concat(passingScope)
-            .concat(passingParams)
-            .join(
+            .concat(passingParams);
+
+          if (scope.length === 0) {
+            return `PartialApply<${fnName}, [[]]>`;
+          } else {
+            return `[${scope.join(
               ", "
             )}] extends infer scope ? PartialApply<${fnName}, [scope]> : never`;
+          }
         })
 
         .with({ type: "BlockExpression" }, (expr) => {

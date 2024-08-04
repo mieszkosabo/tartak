@@ -8,6 +8,10 @@ My goal was to create a language that's not just a syntax sugar over TypeScript 
 
 Tartak uses [hotscript](https://github.com/gvergnaud/hotscript), [ts-arithmetic](https://github.com/arielhs/ts-arithmetic) and many other tricks to make it happen.
 
+🔔 Keep in mind that this project is a work in progress, may contain bugs and missing features.
+Also, see the [ROADMAP](#ROADMAP) section for planned features.
+Feel free to request features or report bugs with GitHub issues.
+
 ## Feature highlights:
 
 - first-class functions (closures, functions returning functions, partial application, etc.)
@@ -18,6 +22,8 @@ Tartak uses [hotscript](https://github.com/gvergnaud/hotscript), [ts-arithmetic]
 ## Quick demo
 
 ```ts
+// file: parseRoute.tartak
+
 // exported types will be available for you to import from compiled files
 // to distinguish between objects ({}) and blocks, blocks have a colon before the opening brace (:{})
 export type parseRoute = (route: string) => :{
@@ -59,27 +65,47 @@ type params = parseRoute("/users/<id:string>/posts/<index:number>")
 
 ```
 
+Then, compile the file with:
+
+```bash
+npx tartak parseRoute.tartak
+```
+
+This will generate a `parseRoute.tartak.ts` file that exports `parseRoute` type, which can be imported and used like this:
+
+```ts
+import { parseRoute } from "./routeParser.tartak";
+
+declare function redirect<Route extends string>(
+  route: Route,
+  params: parseRoute<Route>
+): void;
+
+redirect("/api/v1/user/<id:string>", {
+  id: "123", // OK
+});
+
+redirect("/api/v1/user/<id:string>", {
+  id: 123, // Error: Type 'number' is not assignable to type 'string'
+});
+
+redirect("/api/v1/user/<id:string>", {
+  hello: "123", // Error: Object literal may only specify known properties, and hello does not exist in type:
+});
+```
+
 ## Getting started
 
 First, install Tartak with your favorite package manager:
 
 ```bash
 npm i -D tartak
-```
-
-```bash
 yarn add -D tartak
-```
-
-```bash
 pnpm add -D tartak
-```
-
-```bash
 bun add -D tartak
 ```
 
-Then, create a file with the `.tartak` extension and start writing your code.
+Then, create a file with the `.tartak` extension and start writing your code. You can place `.tartak` files anywhere in your project.
 For example:
 
 ```tartak
